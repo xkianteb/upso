@@ -1,6 +1,6 @@
 import random,sys,os,time
 from sets import Set
-import subprocess,threading,Queue
+from multiprocessing import Process,Queue
 
 XMIN = 0
 XMAX = 100
@@ -69,7 +69,7 @@ outfile = "out.gif"
 start = time.time()
 
 points = []
-input_data = Queue.Queue()
+input_data = Queue()
 for i in xrange(num_points):
 	coords = (random.random() * XMAX, random.random() * YMAX)
 	p = Point(coords)
@@ -82,14 +82,14 @@ f = open(filename+".txt","w")
 print_locations(f, points)
 f.close()
 
-cmds = Queue.Queue()
+cmds = Queue()
 
-output_text = Queue.Queue()
-output_points = Queue.Queue()
+output_text = Queue()
+output_points = Queue()
 
 threads = []
 for t in range(NUM_THREADS):
-	thr = threading.Thread(target = threaded_work, args = (t,input_data,output_points,output_text))
+	thr = Process(target = threaded_work, args = (t,input_data,output_points,output_text))
 	thr.start()
 	threads.append(thr)
 
