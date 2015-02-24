@@ -9,9 +9,11 @@ YMAX = 10
 SPEED_SCALAR = 1
 NUM_THREADS = int(sys.argv[sys.argv.index("-t")+1]) if "-t" in sys.argv else 1
 TERMINATOR = "TERMINATOR"
+POINT = "POINT"
+CMD = "CMD"
 
-num_points = 100
-steps = 1000
+num_points = int(sys.argv[sys.argv.index("-p")+1]) if "-p" in sys.argv else 100
+steps = int(sys.argv[sys.argv.index("-s")+1]) if "-s" in sys.argv else 500
 
 random.seed()
 
@@ -44,17 +46,17 @@ class Point:
 		else:
 			self.y += self.ydir
 
-def threaded_move(id,input,output,output_text):
-	#print "moving on t",id
-	p = input.get()
-	#i = 0
-	while not p == TERMINATOR:
-		p.move()
-		output.put(p)
-		output_text.put(p.to_string()+"\n")
-		p = input.get()
-		#i += 1
-		#print "Thread",id,"finished",i
+def threaded_work(id,input,output,output_text):
+	x = input.get()
+	while not x == TERMINATOR:
+		tag,p = x
+		if POINT == tag:
+			p.move()
+			output.put(p)
+			output_text.put(p.to_string()+"\n")
+		elif CMD == tag:
+			os.system(p)
+		x = input.get()
 
 def print_locations(f,points):
 	for p in points:
@@ -67,12 +69,12 @@ outfile = "out.gif"
 start = time.time()
 
 points = []
-input_points = Queue.Queue()
+input_data = Queue.Queue()
 for i in xrange(num_points):
 	coords = (random.random() * XMAX, random.random() * YMAX)
 	p = Point(coords)
 	points.append(p)
-	input_points.put(p)
+	input_data.put((POINT,p))
 
 pad = (len(str(steps)) - len(str(0))) * "0"
 filename = stem+pad+str(0)
@@ -82,27 +84,31 @@ f.close()
 
 cmds = Queue.Queue()
 
+output_text = Queue.Queue()
+output_points = Queue.Queue()
+
+threads = []
+for t in range(NUM_THREADS):
+	thr = threading.Thread(target = threaded_work, args = (t,input_data,output_points,output_text))
+	thr.start()
+	threads.append(thr)
+
+done = []
 for s in xrange(steps):
 	if s > 0 and s % (0.1 * steps) == 0:
-		print 100.0 * s/steps,"% done"
+		print 100.0 * s/steps,"% done",round(time.time() - start,2)
 	s += 1
 
 	cmd = "./gnu.sh "+filename+" "+(" ".join([str(x) for x in [YMIN-2,YMAX+2,XMIN-2,XMAX+2]]))
 	cmds.put(cmd)
 	
-	output_text = Queue.Queue()
-	output_points = Queue.Queue()
-	threads = []
-	for t in range(NUM_THREADS):
-		input_points.put(TERMINATOR)
-		thr = threading.Thread(target = threaded_move, args = (t,input_points,output_points,output_text))
-		thr.start()
-		threads.append(thr)
-		#print "started thread",t
-
-	for thr in threads:
-		thr.join()
-
+	for p in done:
+		input_data.put((POINT,p))
+	
+	done = []
+	while not len(done) == len(points):
+		done.append(output_points.get())
+	
 	pad = (len(str(steps)) - len(str(s))) * "0"
 	filename = stem+pad+str(s)
 	f = open(filename+".txt","w")
@@ -111,9 +117,17 @@ for s in xrange(steps):
 		f.write(line)
 	f.close()
 
-	input_points = output_points
 
 print "Time taken before gif:",time.time() - start
+
+while not cmds.empty():
+	input_data.put((CMD,cmds.get()))
+
+for thr in threads:
+	input_data.put(TERMINATOR)
+	
+while not input_data.empty():
+	time.sleep(0.001)
 
 if "-a" in sys.argv:
 	os.system("animate "+stem+"*.png")
