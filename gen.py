@@ -6,23 +6,51 @@ XMIN = 0
 XMAX = 10
 YMIN = 0
 YMAX = 10
-SPEED_SCALAR = 1
+SPEED_SCALAR = 0.2
 NUM_THREADS = int(sys.argv[sys.argv.index("-t")+1]) if "-t" in sys.argv else 1
 TERMINATOR = "TERMINATOR"
 POINT = "POINT"
 CMD = "CMD"
+RANDOM = "RANDOM"
+RIGHTWARD = "RIGHTWARD"
+DIRECTION = RIGHTWARD if "--rightward" in sys.argv else RANDOM
 
 num_points = int(sys.argv[sys.argv.index("-p")+1]) if "-p" in sys.argv else 100
 steps = int(sys.argv[sys.argv.index("-s")+1]) if "-s" in sys.argv else 500
 
 random.seed()
 
+def usage():
+	print """
+		python gen.py options
+		options:
+			--help : this text
+			-t <num threads>
+			--rightward : initialize all points with (1,0) velocity, else random
+			-p <num particles> : default 100
+			-s <num steps to simulate> : default 500
+	"""
+
+if "--help" in sys.argv:
+	usage()
+	sys.exit()
+
 class Point:
 	def __init__(self, coords):
 		self.x = coords[0]
 		self.y = coords[1]
-		self.xvel = SPEED_SCALAR * (0.5 - random.random())
-		self.yvel = SPEED_SCALAR * (0.5 - random.random())
+		self.xvel,self.yvel = [SPEED_SCALAR * val for val in self.velocities()]
+		self.radius = 0.5
+	
+	def velocities(self):
+		if DIRECTION == RANDOM:
+			x = random.random() * random.choice([1,-1])
+			y = (1 - x) * random.choice([1,-1])
+			return (x,y)
+		elif DIRECTION == RIGHTWARD:
+			return (1,0)
+		else:
+			raise "Invalid velocity"
 	
 	def to_string(self):
 		return " ".join([str(round(x,3)) for x in [self.x,self.y]])
