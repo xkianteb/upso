@@ -3,7 +3,7 @@ from sets import Set
 from multiprocessing import Process,Queue
 
 XMIN = 0
-XMAX = 100
+XMAX = 10
 YMIN = 0
 YMAX = 10
 SPEED_SCALAR = 1
@@ -21,30 +21,30 @@ class Point:
 	def __init__(self, coords):
 		self.x = coords[0]
 		self.y = coords[1]
-		self.xdir = SPEED_SCALAR * (0.5 - random.random())
-		self.ydir = SPEED_SCALAR * (0.5 - random.random())
+		self.xvel = SPEED_SCALAR * (0.5 - random.random())
+		self.yvel = SPEED_SCALAR * (0.5 - random.random())
 	
 	def to_string(self):
 		return " ".join([str(round(x,3)) for x in [self.x,self.y]])
 	
 	def move(self):
-		if self.x + self.xdir < XMIN:
-			self.x = XMIN + (abs(self.xdir) - (self.x - XMIN))
-			self.xdir *= -1
-		elif self.x + self.xdir > XMAX:
-			self.x = XMAX - self.xdir - (XMAX - self.x)
-			self.xdir *= -1
+		if self.x + self.xvel < XMIN:
+			self.x = XMIN + (abs(self.xvel) - (self.x - XMIN))
+			self.xvel *= -1
+		elif self.x + self.xvel > XMAX:
+			self.x = XMAX - self.xvel - (XMAX - self.x)
+			self.xvel *= -1
 		else:
-			self.x += self.xdir
+			self.x += self.xvel
 		
-		if self.y + self.ydir < YMIN:
-			self.y = YMIN + (abs(self.ydir) - (self.y - YMIN))
-			self.ydir *= -1
-		elif self.y + self.ydir > YMAX:
-			self.y = YMAX - self.ydir - (YMAX - self.y)
-			self.ydir *= -1
+		if self.y + self.yvel < YMIN:
+			self.y = YMIN + (abs(self.yvel) - (self.y - YMIN))
+			self.yvel *= -1
+		elif self.y + self.yvel > YMAX:
+			self.y = YMAX - self.yvel - (YMAX - self.y)
+			self.yvel *= -1
 		else:
-			self.y += self.ydir
+			self.y += self.yvel
 
 def threaded_work(id,input,output,output_text):
 	x = input.get()
