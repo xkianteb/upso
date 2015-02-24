@@ -1,4 +1,4 @@
-import random,sys,os,time
+import random,sys,os,time,math
 from sets import Set
 from multiprocessing import Process,Queue
 
@@ -14,6 +14,7 @@ CMD = "CMD"
 RANDOM = "RANDOM"
 RIGHTWARD = "RIGHTWARD"
 DIRECTION = RIGHTWARD if "--rightward" in sys.argv else RANDOM
+MAX_VELOCITY = 1.0
 
 num_points = int(sys.argv[sys.argv.index("-p")+1]) if "-p" in sys.argv else 100
 steps = int(sys.argv[sys.argv.index("-s")+1]) if "-s" in sys.argv else 500
@@ -35,18 +36,25 @@ if "--help" in sys.argv:
 	usage()
 	sys.exit()
 
+def vector_length(values):
+	return math.sqrt(values[0]**2 + values[1]**2)
+
+def normalize(values):
+	length = vector_length(values)
+	return [x / length for x in values]
+
 class Point:
 	def __init__(self, coords):
 		self.x = coords[0]
 		self.y = coords[1]
-		self.xvel,self.yvel = [SPEED_SCALAR * val for val in self.velocities()]
+		self.xvel,self.yvel = [SPEED_SCALAR * random.choice([1,-1]) * val for val in normalize(self.velocities())]
+		print self.xvel,self.yvel,vector_length([self.xvel,self.yvel])
 		self.radius = 0.5
 	
 	def velocities(self):
 		if DIRECTION == RANDOM:
-			x = random.random() * random.choice([1,-1])
-			y = (1 - x) * random.choice([1,-1])
-			return (x,y)
+			x = random.random()
+			return (x,random.random())
 		elif DIRECTION == RIGHTWARD:
 			return (1,0)
 		else:
