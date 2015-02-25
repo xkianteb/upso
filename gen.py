@@ -1,6 +1,6 @@
 import random,sys,os,time,math
 from sets import Set
-from multiprocessing import Process,Queue
+from multiprocessing import Process,Queue,Array
 
 XMIN = 0
 XMAX = 10
@@ -45,11 +45,13 @@ def normalize(values):
 
 class Point:
 	def __init__(self, coords):
-		self.x = coords[0]
-		self.y = coords[1]
-		self.xvel,self.yvel = [SPEED_SCALAR * random.choice([1,-1]) * val for val in normalize(self.velocities())]
-		print self.xvel,self.yvel,vector_length([self.xvel,self.yvel])
+		self.x = self.format(coords[0])
+		self.y = self.format(coords[1])
+		self.xvel,self.yvel = [self.format(SPEED_SCALAR * random.choice([1,-1]) * val) for val in normalize(self.velocities())]
 		self.radius = 0.5
+	
+	def format(self, x):
+		return round(x,3)
 	
 	def velocities(self):
 		if DIRECTION == RANDOM:
@@ -63,7 +65,7 @@ class Point:
 	def to_string(self):
 		return " ".join([str(round(x,3)) for x in [self.x,self.y]])
 	
-	def move(self):
+	def move(self, point_coords):
 		if self.x + self.xvel < XMIN:
 			self.x = XMIN + (abs(self.xvel) - (self.x - XMIN))
 			self.xvel *= -1
@@ -82,14 +84,18 @@ class Point:
 		else:
 			self.y += self.yvel
 
-def threaded_work(id,input,output,output_text):
+		self.x = self.format(self.x)
+		self.y = self.format(self.y)
+
+def threaded_work(id,input,output,output_text,point_coords):
 	x = input.get()
 	while not x == TERMINATOR:
 		tag,p = x
 		if POINT == tag:
-			p.move()
+			p.move(point_coords)
 			output.put(p)
 			output_text.put(p.to_string()+"\n")
+			print point_coords[0],point_coords[1]
 		elif CMD == tag:
 			os.system(p)
 		x = input.get()
@@ -105,11 +111,14 @@ outfile = "out.gif"
 start = time.time()
 
 points = []
+point_coords = Array('d', range(num_points*2) )
 input_data = Queue()
 for i in xrange(num_points):
 	coords = (random.random() * XMAX, random.random() * YMAX)
 	p = Point(coords)
 	points.append(p)
+	point_coords[2*i] = p.x
+	point_coords[2*i + 1] = p.y
 	input_data.put((POINT,p))
 
 pad = (len(str(steps)) - len(str(0))) * "0"
@@ -123,9 +132,10 @@ cmds = Queue()
 output_text = Queue()
 output_points = Queue()
 
+
 threads = []
 for t in range(NUM_THREADS):
-	thr = Process(target = threaded_work, args = (t,input_data,output_points,output_text))
+	thr = Process(target = threaded_work, args = (t,input_data,output_points,output_text,point_coords))
 	thr.start()
 	threads.append(thr)
 
@@ -142,8 +152,17 @@ for s in xrange(steps):
 		input_data.put((POINT,p))
 	
 	done = []
+	temp_point_coords = [0]*(num_points*2)
+	i = 0
 	while not len(done) == len(points):
-		done.append(output_points.get())
+		p = output_points.get()
+		temp_point_coords[i] = p.x
+		temp_point_coords[i + 1] = p.y
+		i += 2
+		done.append(p)
+
+	for i,x in enumerate(temp_point_coords):
+		point_coords[i] = x
 	
 	pad = (len(str(steps)) - len(str(s))) * "0"
 	filename = stem+pad+str(s)
