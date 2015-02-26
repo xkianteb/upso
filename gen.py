@@ -4,17 +4,22 @@ from multiprocessing import Process,Queue,Array
 
 WIDTH = 10
 HEIGHT = 10
-SPEED_CAP = 0.2
+SPEED_CAP = 0.1
 NUM_THREADS = int(sys.argv[sys.argv.index("-t")+1]) if "-t" in sys.argv else 1
 TERMINATOR = "TERMINATOR"
 POINT = "POINT"
 CMD = "CMD"
 RANDOM = "RANDOM"
-RIGHTWARD = "RIGHTWARD"
+RIGHTWARD = "--rightward" in sys.argv
+UPWARD = "--upward" in sys.argv
 
-DIRECTION = RIGHTWARD if "--rightward" in sys.argv else RANDOM
+if "--rightward" in sys.argv or "--upward" in sys.argv:
+	DIRECTION = "NOT_RANDOM"
+else:
+	DIRECTION = RANDOM
+
 PER_POINT_COORD = 6
-ELASTICITY = 0.75
+ELASTICITY = 1
 
 num_points = int(sys.argv[sys.argv.index("-p")+1]) if "-p" in sys.argv else 100
 steps = int(sys.argv[sys.argv.index("-s")+1]) if "-s" in sys.argv else 500
@@ -28,7 +33,8 @@ def usage():
 		options:
 			--help : this text
 			-t <num threads>
-			--rightward : initialize all points with (1,0) velocity, else random
+			--rightward : initialize all points with rightward velocity, else random
+			--upwardward : initialize all points with upward velocity, else random
 			-p <num particles> : default 100
 			-s <num steps to simulate> : default 500
 			--grid : align particles to x,y points
@@ -48,23 +54,25 @@ def normalize(values):
 def distance(x1,y1,x2,y2):
 	return math.sqrt( (x2 - x1)**2 + (y2 - y1)**2 )
 
-def dotproduct(v1, v2):
-	return sum((a*b) for a, b in zip(v1, v2))
-
-def angle(v1, v2):
-	return math.acos(dotproduct(v1, v2) / (vector_length(v1) * vector_length(v2)))
-
-def vector_angle(x,y):
-	return math.tan(y / x)
+def cross_product(x1,y1,x2,y2):
+	return x1*y2 - y1*x2
 
 class Point:
-	def __init__(self, coords):
+	def __init__(self, id, coords):
+		self.id = id
 		self.x = self.format(coords[0])
 		self.y = self.format(coords[1])
-		self.speed = SPEED_CAP if DIRECTION == RIGHTWARD else (self.format(SPEED_CAP * random.choice([1,-1]) * random.random()))
-		self.size = 0.2
+		self.speed = SPEED_CAP if not DIRECTION == RANDOM else (self.format(SPEED_CAP * random.choice([1,-1]) * random.random()))
+		self.size = 0.4
 		self.mass = 1
-		self.angle = math.pi/2 if DIRECTION == RIGHTWARD else random.random() * 2 * math.pi
+		self.angle = random.random() if DIRECTION == RANDOM else 0
+		if UPWARD and RIGHTWARD:
+			self.angle = 3 * math.pi / 4
+		elif UPWARD:
+			self.angle = math.pi
+		elif RIGHTWARD:
+			self.angle = math.pi / 2
+
 	
 	def format(self, x):
 		return round(x,3)
@@ -82,14 +90,17 @@ class Point:
 			if (x,y,speed,size,mass,angle) == (self.x,self.y,self.speed,self.size,self.mass,self.angle):
 				continue
 			
-			if distance(x,y, self.x,self.y) < self.size + size:
-				#print "collision between ",(x,y),(self.x,self.y)
+			if distance(x,y, self.x,self.y) >= self.size + size:
+				continue
+			
+			if (x < self.x and math.copysign(1, math.cos(angle)) > math.copysign(1, math.cos(self.angle))) or (self.x < x and math.copysign(1, math.cos(self.angle)) > math.copysign(1, math.cos(angle))) or (y < self.y and math.copysign(1, math.sin(angle)) > math.copysign(1, math.sin(self.angle))) or (self.y < y and math.copysign(1, math.sin(self.angle)) > math.copysign(1, math.sin(angle))):
+		
 				collides_with.append((x,y,speed,size,mass,angle))
 
 		return collides_with
 	
 	def move(self, point_coords):
-		collides_with = [] #self.is_colliding(point_coords)
+		collides_with = self.is_colliding(point_coords)
 		
 		if len(collides_with) > 0:
 			# do collision math
@@ -98,19 +109,23 @@ class Point:
 			
 			dx = self.x - x
 			dy = self.y - y
-			elasticity = 0.75
 			
-			tangent = math.atan(dy,dx)
-			ang = 0.5 * math.pi + tangent
+			tangent = math.atan2(dy,dx)
+			angle = 0.5 * math.pi + tangent
 			
-			ang1 = 2*tangent - vector_angle(self.y,self.x)
-			ang2 = 2*tangent - vector_angle(y,x)
-			speed1 = vector_length((xvel,yvel)) * elasticity
-			speed2 = vector_length((self.xvel,self.yvel)) * elasticity
-			
-			
-			
-		#(self.angle, self.speed) = addVectors((self.angle, self.speed), gravity)
+			angle1 = 2*tangent - self.angle
+			angle2 = 2*tangent - angle
+			speed1 = speed * ELASTICITY
+			speed2 = self.speed * ELASTICITY
+		
+			self.angle = angle1
+			#print "Changing speed from ",self.speed,"to",speed1
+			self.speed = speed1
+#			if self.id == 1:
+#				print self.id,"Adding to x",self.speed*math.sin(angle)
+#			self.x += math.sin(angle) * self.size
+#			self.y -= math.cos(angle) * self.size
+		
 		self.x += math.sin(self.angle) * self.speed
 		self.y -= math.cos(self.angle) * self.speed
 		
@@ -134,7 +149,7 @@ class Point:
 			self.angle = math.pi - self.angle
 			self.speed *= ELASTICITY
 
-
+		self.angle = self.angle % (2 * math.pi)
 		self.x = self.format(self.x)
 		self.y = self.format(self.y)
 
@@ -167,8 +182,8 @@ point_coords = Array('d', range(num_points*PER_POINT_COORD) )
 input_data = Queue()
 for i in xrange(num_points):
 	coords = (1 + i % (WIDTH-2) ,1 + (i / (WIDTH-2)) % (HEIGHT-2) ) if GRID else (random.random() * WIDTH, random.random() * HEIGHT)
-	print coords
-	p = Point(coords)
+	#print coords
+	p = Point(i, coords)
 	points.append(p)
 	point_coords[PER_POINT_COORD * i] = p.x
 	point_coords[PER_POINT_COORD * i + 1] = p.y
