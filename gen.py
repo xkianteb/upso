@@ -2,22 +2,23 @@ import random,sys,os,time,math
 from sets import Set
 from multiprocessing import Process,Queue,Array
 
-XMIN = 0
-XMAX = 10
-YMIN = 0
-YMAX = 10
-SPEED_SCALAR = 0.2
+WIDTH = 10
+HEIGHT = 10
+SPEED_CAP = 0.2
 NUM_THREADS = int(sys.argv[sys.argv.index("-t")+1]) if "-t" in sys.argv else 1
 TERMINATOR = "TERMINATOR"
 POINT = "POINT"
 CMD = "CMD"
 RANDOM = "RANDOM"
 RIGHTWARD = "RIGHTWARD"
+
 DIRECTION = RIGHTWARD if "--rightward" in sys.argv else RANDOM
-MAX_VELOCITY = 1.0
+PER_POINT_COORD = 6
+ELASTICITY = 0.75
 
 num_points = int(sys.argv[sys.argv.index("-p")+1]) if "-p" in sys.argv else 100
 steps = int(sys.argv[sys.argv.index("-s")+1]) if "-s" in sys.argv else 500
+GRID = "--grid" in sys.argv
 
 random.seed()
 
@@ -30,6 +31,7 @@ def usage():
 			--rightward : initialize all points with (1,0) velocity, else random
 			-p <num particles> : default 100
 			-s <num steps to simulate> : default 500
+			--grid : align particles to x,y points
 	"""
 
 if "--help" in sys.argv:
@@ -43,46 +45,95 @@ def normalize(values):
 	length = vector_length(values)
 	return [x / length for x in values]
 
+def distance(x1,y1,x2,y2):
+	return math.sqrt( (x2 - x1)**2 + (y2 - y1)**2 )
+
+def dotproduct(v1, v2):
+	return sum((a*b) for a, b in zip(v1, v2))
+
+def angle(v1, v2):
+	return math.acos(dotproduct(v1, v2) / (vector_length(v1) * vector_length(v2)))
+
+def vector_angle(x,y):
+	return math.tan(y / x)
+
 class Point:
 	def __init__(self, coords):
 		self.x = self.format(coords[0])
 		self.y = self.format(coords[1])
-		self.xvel,self.yvel = [self.format(SPEED_SCALAR * random.choice([1,-1]) * val) for val in normalize(self.velocities())]
-		self.radius = 0.5
+		self.speed = SPEED_CAP if DIRECTION == RIGHTWARD else (self.format(SPEED_CAP * random.choice([1,-1]) * random.random()))
+		self.size = 0.2
+		self.mass = 1
+		self.angle = math.pi/2 if DIRECTION == RIGHTWARD else random.random() * 2 * math.pi
 	
 	def format(self, x):
 		return round(x,3)
 	
-	def velocities(self):
-		if DIRECTION == RANDOM:
-			x = random.random()
-			return (x,random.random())
-		elif DIRECTION == RIGHTWARD:
-			return (1,0)
-		else:
-			raise "Invalid velocity"
-	
 	def to_string(self):
 		return " ".join([str(round(x,3)) for x in [self.x,self.y]])
 	
+	def is_colliding(self, point_coords):
+		i = 0
+		collides_with = []
+		while i < len(point_coords):
+			x,y,speed,size,mass,angle = point_coords[i:i+PER_POINT_COORD]
+			i += PER_POINT_COORD
+			
+			if (x,y,speed,size,mass,angle) == (self.x,self.y,self.speed,self.size,self.mass,self.angle):
+				continue
+			
+			if distance(x,y, self.x,self.y) < self.size + size:
+				#print "collision between ",(x,y),(self.x,self.y)
+				collides_with.append((x,y,speed,size,mass,angle))
+
+		return collides_with
+	
 	def move(self, point_coords):
-		if self.x + self.xvel < XMIN:
-			self.x = XMIN + (abs(self.xvel) - (self.x - XMIN))
-			self.xvel *= -1
-		elif self.x + self.xvel > XMAX:
-			self.x = XMAX - self.xvel - (XMAX - self.x)
-			self.xvel *= -1
-		else:
-			self.x += self.xvel
+		collides_with = [] #self.is_colliding(point_coords)
 		
-		if self.y + self.yvel < YMIN:
-			self.y = YMIN + (abs(self.yvel) - (self.y - YMIN))
-			self.yvel *= -1
-		elif self.y + self.yvel > YMAX:
-			self.y = YMAX - self.yvel - (YMAX - self.y)
-			self.yvel *= -1
-		else:
-			self.y += self.yvel
+		if len(collides_with) > 0:
+			# do collision math
+			
+			x,y,speed,size,mass,angle = collides_with[0]
+			
+			dx = self.x - x
+			dy = self.y - y
+			elasticity = 0.75
+			
+			tangent = math.atan(dy,dx)
+			ang = 0.5 * math.pi + tangent
+			
+			ang1 = 2*tangent - vector_angle(self.y,self.x)
+			ang2 = 2*tangent - vector_angle(y,x)
+			speed1 = vector_length((xvel,yvel)) * elasticity
+			speed2 = vector_length((self.xvel,self.yvel)) * elasticity
+			
+			
+			
+		#(self.angle, self.speed) = addVectors((self.angle, self.speed), gravity)
+		self.x += math.sin(self.angle) * self.speed
+		self.y -= math.cos(self.angle) * self.speed
+		
+		if self.x > WIDTH - self.size:
+			self.x = 2*(WIDTH - self.size) - self.x
+			self.angle = - self.angle
+			self.speed *= ELASTICITY
+		elif self.x < self.size:
+			self.x = 2*self.size - self.x
+			self.angle = - self.angle
+			self.speed *= ELASTICITY
+			
+
+		if self.y > HEIGHT - self.size:
+			self.y = 2*(HEIGHT - self.size) - self.y
+			self.angle = math.pi - self.angle
+			self.speed *= ELASTICITY
+
+		elif self.y < self.size:
+			self.y = 2*self.size - self.y
+			self.angle = math.pi - self.angle
+			self.speed *= ELASTICITY
+
 
 		self.x = self.format(self.x)
 		self.y = self.format(self.y)
@@ -95,7 +146,7 @@ def threaded_work(id,input,output,output_text,point_coords):
 			p.move(point_coords)
 			output.put(p)
 			output_text.put(p.to_string()+"\n")
-			print point_coords[0],point_coords[1]
+			#print point_coords[0],point_coords[1]
 		elif CMD == tag:
 			os.system(p)
 		x = input.get()
@@ -111,14 +162,20 @@ outfile = "out.gif"
 start = time.time()
 
 points = []
-point_coords = Array('d', range(num_points*2) )
+
+point_coords = Array('d', range(num_points*PER_POINT_COORD) )
 input_data = Queue()
 for i in xrange(num_points):
-	coords = (random.random() * XMAX, random.random() * YMAX)
+	coords = (1 + i % (WIDTH-2) ,1 + (i / (WIDTH-2)) % (HEIGHT-2) ) if GRID else (random.random() * WIDTH, random.random() * HEIGHT)
+	print coords
 	p = Point(coords)
 	points.append(p)
-	point_coords[2*i] = p.x
-	point_coords[2*i + 1] = p.y
+	point_coords[PER_POINT_COORD * i] = p.x
+	point_coords[PER_POINT_COORD * i + 1] = p.y
+	point_coords[PER_POINT_COORD * i + 2] = p.speed
+	point_coords[PER_POINT_COORD * i + 3] = p.size
+	point_coords[PER_POINT_COORD * i + 4] = p.mass
+	point_coords[PER_POINT_COORD * i + 5] = p.angle
 	input_data.put((POINT,p))
 
 pad = (len(str(steps)) - len(str(0))) * "0"
@@ -145,20 +202,24 @@ for s in xrange(steps):
 		print 100.0 * s/steps,"% done",round(time.time() - start,2)
 	s += 1
 
-	cmd = "./gnu.sh "+filename+" "+(" ".join([str(x) for x in [YMIN-2,YMAX+2,XMIN-2,XMAX+2]]))
+	cmd = "./gnu.sh "+filename+" "+(" ".join([str(x) for x in [-2,HEIGHT+2,-2,WIDTH+2]]))
 	cmds.put(cmd)
 	
 	for p in done:
 		input_data.put((POINT,p))
 	
 	done = []
-	temp_point_coords = [0]*(num_points*2)
+	temp_point_coords = [0]*(num_points*PER_POINT_COORD)
 	i = 0
 	while not len(done) == len(points):
 		p = output_points.get()
 		temp_point_coords[i] = p.x
 		temp_point_coords[i + 1] = p.y
-		i += 2
+		temp_point_coords[i + 2] = p.speed
+		temp_point_coords[i + 3] = p.size
+		temp_point_coords[i + 4] = p.mass
+		temp_point_coords[i + 5] = p.angle
+		i += PER_POINT_COORD
 		done.append(p)
 
 	for i,x in enumerate(temp_point_coords):
