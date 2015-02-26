@@ -93,8 +93,8 @@ class Point:
 			if distance(x,y, self.x,self.y) >= self.size + size:
 				continue
 			
-			if (x < self.x and math.copysign(1, math.cos(angle)) > math.copysign(1, math.cos(self.angle))) or (self.x < x and math.copysign(1, math.cos(self.angle)) > math.copysign(1, math.cos(angle))) or (y < self.y and math.copysign(1, math.sin(angle)) > math.copysign(1, math.sin(self.angle))) or (self.y < y and math.copysign(1, math.sin(self.angle)) > math.copysign(1, math.sin(angle))):
-		
+			if abs(self.x - x) > abs((self.x + self.speed * math.sin(self.angle) ) - (x + speed * math.sin(angle) )) or abs(self.y - y) < abs((self.y + self.speed * math.cos(self.angle) ) - (y + speed * math.cos(angle) )):
+
 				collides_with.append((x,y,speed,size,mass,angle))
 
 		return collides_with
@@ -123,8 +123,8 @@ class Point:
 			self.speed = speed1
 #			if self.id == 1:
 #				print self.id,"Adding to x",self.speed*math.sin(angle)
-#			self.x += math.sin(angle) * self.size
-#			self.y -= math.cos(angle) * self.size
+#			self.x += math.sin(angle) * abs(x - self.x)
+#			self.y -= math.cos(angle) * abs(y - self.y)
 		
 		self.x += math.sin(self.angle) * self.speed
 		self.y -= math.cos(self.angle) * self.speed
