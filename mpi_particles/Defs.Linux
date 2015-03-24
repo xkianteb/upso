@@ -1,0 +1,35 @@
+#### GLFW OpenGL windowing library
+# try pkg-config
+ifeq ($(shell pkg-config --exists glfw3 2>/dev/null && echo y), y)
+  CXXFLAGS += $(shell pkg-config --cflags glfw3)
+  LDLIBS += $(shell pkg-config --static --libs glfw3)
+
+# GLFWDIR variable instead
+else 
+  # default if not set
+  GLFWDIR ?= /usr/local
+
+  CXXFLAGS += -I$(GLFWDIR)/include
+  LDLIBS += -L$(GLFWDIR)/lib -lglfw3 \
+	-lrt -lXrandr -lXi -lGL -lm -ldl -lXrender -ldrm -lXdamage \
+        -lX11-xcb -lxcb-glx -lxcb-dri1 -lXxf86vm -lXfixes -lXext \
+        -lX11 -lpthread -lxcb -lXau
+endif
+
+#### GLEW OpenGL extensions library
+
+# try pkg-config
+ifeq ($(shell pkg-config --exists glew 2>/dev/null && echo y), y)
+  CXXFLAGS += $(shell pkg-config --cflags glew)
+  LDLIBS += $(shell pkg-config --static --libs glew)
+
+# use GLEWDIR variable instead
+else
+  # default if not set
+  GLEWDIR ?= /usr/local
+
+  CXXFLAGS += -I$(GLEWDIR)/include
+  LDLIBS += -L$(GLEWDIR)/lib -lGLEW \
+         -lGLU -lGL -lm -ldl -ldrm -lXdamage -lX11-xcb -lxcb-glx -lxcb-dri2 \
+         -Xxf86vm -lXfixes -lXext -lX11 -lpthread -lxcb -lXau
+endif

@@ -1,0 +1,9 @@
+newmtl terrain
+Ka 0.20 0.20 0.20
+Kd 1.00 1.00 1.00
+Ks 0.04 0.04 0.04
+Tr 1.0
+illum 2
+Ns 16
+map_Kd pebbles.pam
+
