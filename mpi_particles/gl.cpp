@@ -17,6 +17,9 @@
 #include <map>
 
 #include "run.h"
+#include "common.h"
+
+#define DRAW_DELAY 0.1
 
 #define MIN(a,b) (a > b ? b : a)
 #define MAX(a,b) (a > b ? a : b)
@@ -121,7 +124,7 @@ bool str_equals(char *a, char *b){
     return strcmp(a, b) == 0;
 }
 
-void get_space_for_items(unsigned int *space_for_items, unsigned int *num_items, void **items, unsigned int item_size, unsigned int batch_size, bool verbose){
+void get_space_for_items(unsigned int *space_for_items, int *num_items, void **items, unsigned int item_size, unsigned int batch_size, bool verbose){
     
     if(*space_for_items == 0 || *space_for_items == *num_items){
 		if(verbose)
@@ -143,7 +146,7 @@ void get_space_for_items(unsigned int *space_for_items, unsigned int *num_items,
     }
 }
 
-void read_input(bool verbose, FILE *fp, AppContext *appctx, Textures tex, Vec<3> **points, unsigned int *num_points, unsigned int *num_particles, double *min_x, double *max_x, double *min_y, double *max_y, double *density){
+void read_input(bool verbose, FILE *fp, Vec<3> **points, int *num_particles, int *num_points, double *min_x, double *max_x, double *min_y, double *max_y, double *density){
     
     char * line = NULL;
     size_t len = 0;
@@ -164,6 +167,7 @@ void read_input(bool verbose, FILE *fp, AppContext *appctx, Textures tex, Vec<3>
 	double x,y = 0;
 	int values_read = 0;
 	
+	(*num_points) = 0;
 	// get space for one to start
 
 	while((read = getline(&line, &len, fp)) != -1){
@@ -194,18 +198,13 @@ void read_input(bool verbose, FILE *fp, AppContext *appctx, Textures tex, Vec<3>
 		}else{
 			//printf("0 %u %u %x\n", space_for_points, *num_points, *points);
 			get_space_for_items(&space_for_points, num_points, (void **) points, sizeof(Vec<3>), batch_malloc_size, verbose);
-			//printf("1 %u %u %x\n", space_for_points, *num_points, *points);
-			//fflush(stdout);
 			sscanf(line, "%lf %lf\n", &x, &y );
-			(*points)[*num_points] = Vec3(x, y, 1);
+			(*points)[*num_points].x = x;
+			(*points)[*num_points].y = y;
 			(*min_x) = MIN( *min_x, (*points)[*num_points].x );
 			(*max_x) = MAX( *max_x, (*points)[*num_points].x );
 			(*min_y) = MIN( *min_y, (*points)[*num_points].y );
 			(*max_y) = MAX( *max_y, (*points)[*num_points].y );
-			//printf("2\n");
-			//fflush(stdout);
-			//printf("added point %lf %lf\n",(*points)[*num_points].x, (*points)[*num_points].y);
-			//fflush(stdout);
 			(*num_points)++;
 		}
 		if(verbose)
@@ -218,12 +217,8 @@ void read_input(bool verbose, FILE *fp, AppContext *appctx, Textures tex, Vec<3>
 	
 }
 
-/*
-void setup_gl(){
-	double min_x = INT_MAX;
-	double max_x = INT_MIN;
-	double min_y = INT_MAX;
-	double max_y = INT_MIN;
+
+int draw_data(Vec<3> *points, int num_particles, int num_points, double min_x, double min_y, double max_x, double max_y){
 	
 	GLFWwindow *win = initGLFW();
 	assert(win);				// window must exist
@@ -231,9 +226,7 @@ void setup_gl(){
 	AppContext appctx(win);
 	Textures tex;
 	
-	read_input(verbose, read_pointer, &appctx, tex, &points, &num_points, &num_particles, &min_x, &max_x, &min_y, &max_y, &density);
-	
-	// do some processing on the points
+	// do some processing on the particles
 	printf("x range: (%lf,%lf), y range: (%lf,%lf)\n", min_x, max_x, min_y, max_y);
 	double x_width = min_x + (max_x - min_x) * 0.5;
 	max_x -= x_width;
@@ -242,11 +235,13 @@ void setup_gl(){
 	max_y -= y_width;
 	min_y -= y_width;
 	
+	int points_used_so_far = 0;
 	
 	double desired_height = 150.0;
 	double scale = max_x > max_y ? desired_height / max_x : desired_height / max_y;
 	printf("scale: %lf\n",scale);
 	
+	unsigned int i = 0;
 	for(i = 0; i < num_points; i++){
 		points[i].x -= x_width;
 		points[i].y -= y_width;
@@ -258,14 +253,16 @@ void setup_gl(){
 		min_y = MIN(min_y, points[i].y);
 	}
 	
+	printf("new min max: (%lf, %lf) (%lf, %lf)\n", min_x, min_y, max_x, max_y);
+	
 	Vec<3> current_points[num_particles];
 	unsigned int sphere_draw_ids[num_particles];
 	
-	double radius = 2;
+	double radius = 5;
 	//printf("radius: %lf\n",radius);
 	
 	for(points_used_so_far = 0; points_used_so_far < num_particles; points_used_so_far++){
-		Sphere sph1(appctx.geom, tex, radius, points[points_used_so_far], 1);
+		Sphere sph1(appctx.geom, tex, radius, Vec3(points[points_used_so_far].x, points[points_used_so_far].y, 1) , 1);
 		sphere_draw_ids[points_used_so_far] = sph1.drawID;
 		current_points[points_used_so_far].x = points[points_used_so_far].x;
 		current_points[points_used_so_far].y = points[points_used_so_far].y;
@@ -284,24 +281,24 @@ void setup_gl(){
 		// check for updates while a key is pressed
 		
 		if(glfwGetTime() - now > DRAW_DELAY){
-			appctx.redraw = true;
 			
+			if(points_used_so_far >= num_points){
+				printf("Drawn all %u points, breaking\n", num_points);
+				//points_used_so_far = 0;
+				break;
+			}
+			
+			appctx.redraw = true;
 			for(i = 0; i < num_particles && points_used_so_far < num_points; ){
 			
 				Xform &xform = appctx.geom.getModelUniforms( sphere_draw_ids[i] ).modelMats;
 				Vec<3> m = Vec3(points[points_used_so_far].x, points[points_used_so_far].y, 0);
-				//printf("drawid %u, prior: %lf, %lf\t\t%lf %lf\n", sphere_draw_ids[i], current_points[i].x,current_points[i].y, m.x,m.y);
 				m.xy = m.xy - current_points[i].xy;
 				current_points[i].xy = points[points_used_so_far].xy;
-				//printf("\tafter: %lf, %lf\n", m.x, m.y);
 				xform = xform * Xform::translate( m );
 				
 				i++;
 				(points_used_so_far)++;
-			}
-			if(points_used_so_far >= num_points){
-				printf("Drawn all %u points, restarting\n", num_points);
-				points_used_so_far = 0;
 			}
 			
 			now = glfwGetTime();
@@ -326,78 +323,6 @@ void setup_gl(){
 	glfwDestroyWindow(win);
 	glfwTerminate();
 	
-}
-/*
-
-int main(int argc, char *argv[]) {
-	
-	bool read_stdin = false;
-    int file_name_index = -1;
-	bool show_usage = false;
-	bool verbose = false;
-	unsigned int base_path_size = 256;
-	char *base_path = (char *) malloc(base_path_size * sizeof(char));
-	char *full_read_file = (char *) malloc(base_path_size * sizeof(char));
-	memset(base_path, 0, base_path_size * sizeof(char));
-	memset(full_read_file, 0, base_path_size * sizeof(char));
-	bool interactive = false;
-	unsigned int points_used_so_far = 0;
-	double speed = 10.0;
-	
-	double density = 0;
-	
-	// set up window
-	
-
-	// drawing infrastructure
-	
-	
-    if(argc > 1){
-        process_args(argc, argv, &read_stdin, &show_usage, &file_name_index, &speed);
-    }
-
-	if(show_usage || (interactive && file_name_index == -1)){
-		usage();
-		exit(0);
-	}
-    
-    FILE *read_pointer = NULL;
-    
-    if(read_stdin){
-        fprintf(stderr, "Reading from stdin\n");
-        read_pointer = stdin;
-	}else if(file_name_index > -1){
-		
-		memcpy(full_read_file, base_path, strlen(base_path) * sizeof(char));
-		memcpy(&full_read_file[strlen(base_path)], argv[file_name_index], strlen(argv[file_name_index]) * sizeof(char));
-		
-        fprintf(stderr, "reading from %s\n", full_read_file);
-        read_pointer = fopen(full_read_file, "r");
-    }else{
-		usage();
-		exit(0);
-	}
-	
-    Vec<3> *points = 0;
-	unsigned int num_points = 0;
-	unsigned int num_particles = 0;
-    
-	
-	printf("Finished reading file\n");
-	fflush(stdout);
-
-	if(!read_stdin && read_pointer != stdin){
-		fclose(read_pointer);
-	}
-
-	//printf("Read %u verts, %u texture_coords, %u norms, %u faces\n", num_vertices, num_texture_coords, num_normal_lines, num_faces);
-	printf("Read %u points\n", num_points);
-	
-	unsigned int i = 0;
-	
-	
-	
-
 	return 0;
 }
-*/
+
