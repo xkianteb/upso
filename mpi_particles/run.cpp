@@ -4,14 +4,17 @@
 #include <assert.h>
 #include "common.h"
 
+#define TIMESTAMPS 10000
 
 void usage(){
 	printf( "Options:\n" );
 	printf( "-h            : this text\n" );
-	printf( "-p <int>      : set the number of particles\n" );
-	printf( "-n <int>      : set the number of MPI cores to use (default 1, and modifiable while running)\n" );
+	printf( "-p <int>      : set the number of particles (default 2)\n" );
+	printf( "-n <int>      : set the number of MPI cores to use (default 1)\n" );
 	printf( "-o <filename> : specify the output file name for logging in background\n" );
-	printf( "-f <filename> : Load points from this file instead of generating\n");
+	printf( "-i <filename> : Load points from this file instead of generating\n");
+	printf( "-t <int>      : set the number of timesteps to calculate, default infinite, but %u with -o implemented\n", NSTEPS );
+	
 }
 
 int main( int argc, char **argv ){
@@ -21,14 +24,26 @@ int main( int argc, char **argv ){
 		exit(0);
     }
     
-    int n = read_int( argc, argv, "-n", 1000 );
+    int num_cores = read_int( argc, argv, "-n", 1 );
+    int num_particles = read_int( argc, argv, "-p", 2 );
 	
 	
     char *savename = NULL;
 	if(find_option(argc, argv, "-o") >= 0){
 		savename = read_string( argc, argv, "-o", NULL );
 	}
-    
+	
+    char *input_name = NULL;
+	if(find_option(argc, argv, "-i") >= 0){
+		input_name = read_string( argc, argv, "-i", NULL );
+	}
+	
+	int timesteps = savename ? NSTEPS : 0;
+	
+	if(find_option(argc, argv, "-t") >= 0){
+		timesteps = read_int( argc, argv, "-t", NSTEPS );
+	}
+	
     //
     //  set up MPI
     //
@@ -66,7 +81,7 @@ int main( int argc, char **argv ){
     particle_t *local = (particle_t*) malloc( nlocal * sizeof(particle_t) );
     
     //
-    //  initialize and distribute the particles (that's fine to leave it unoptimized)
+    //  initialize and distribute the particles
     //
     set_size( n );
     if( rank == 0 )
@@ -77,8 +92,7 @@ int main( int argc, char **argv ){
     //  simulate a number of time steps
     //
     double simulation_time = read_timer( );
-    for( int step = 0; step < NSTEPS; step++ )
-    {
+    for( int step = 0; !timesteps || step < timesteps; step++ ){
         // 
         //  collect all global data locally (not good idea to do)
         //
