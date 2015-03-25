@@ -14,8 +14,7 @@ void usage(){
 	printf( "-f points.txt : Load points from this file instead\n");
 }
 
-int main( int argc, char **argv )
-{    
+int main( int argc, char **argv ){
 
     if( find_option( argc, argv, "-h" ) >= 0 ){
 		usage();

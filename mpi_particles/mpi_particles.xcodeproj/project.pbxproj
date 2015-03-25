@@ -10,7 +10,7 @@
 		69FAB38F1AC1CAD100302F42 /* common.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = common.cpp; sourceTree = "<group>"; };
 		69FAB3901AC1CAD200302F42 /* common.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = common.h; sourceTree = "<group>"; };
 		69FAB3911AC1CAEE00302F42 /* Makefile2 */ = {isa = PBXFileReference; lastKnownFileType = text; path = Makefile2; sourceTree = "<group>"; };
-		69FAB3921AC1CC6200302F42 /* mpi.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = mpi.cpp; sourceTree = "<group>"; };
+		69FAB3921AC1CC6200302F42 /* mpi_code.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = mpi_code.cpp; sourceTree = "<group>"; };
 		69FAB3941AC1FABD00302F42 /* Cylinder.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = Cylinder.cpp; sourceTree = "<group>"; };
 		69FAB3951AC1FABD00302F42 /* Cylinder.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = Cylinder.hpp; sourceTree = "<group>"; };
 		69FAB3961AC1FABD00302F42 /* Defs.Darwin */ = {isa = PBXFileReference; lastKnownFileType = text; path = Defs.Darwin; sourceTree = "<group>"; };
@@ -42,6 +42,10 @@
 		69FAB3B01AC1FABD00302F42 /* Xform.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = Xform.cpp; sourceTree = "<group>"; };
 		69FAB3B11AC1FABD00302F42 /* Xform.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = Xform.hpp; sourceTree = "<group>"; };
 		69FAB3B51AC1FD4000302F42 /* Makefile */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.make; path = Makefile; sourceTree = "<group>"; };
+		69FAB3B71AC24FD300302F42 /* mpi_code.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = mpi_code.h; sourceTree = "<group>"; };
+		69FAB3B91AC256A200302F42 /* gl.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = gl.h; sourceTree = "<group>"; };
+		69FAB3BA1AC2571B00302F42 /* run.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = run.cpp; sourceTree = "<group>"; };
+		69FAB3BB1AC2572300302F42 /* run.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = run.h; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXGroup section */
@@ -49,7 +53,10 @@
 			isa = PBXGroup;
 			children = (
 				69FAB3B51AC1FD4000302F42 /* Makefile */,
-				69FAB3921AC1CC6200302F42 /* mpi.cpp */,
+				69FAB3921AC1CC6200302F42 /* mpi_code.cpp */,
+				69FAB3B71AC24FD300302F42 /* mpi_code.h */,
+				69FAB3BB1AC2572300302F42 /* run.h */,
+				69FAB3BA1AC2571B00302F42 /* run.cpp */,
 				69FAB3911AC1CAEE00302F42 /* Makefile2 */,
 				69FAB38F1AC1CAD100302F42 /* common.cpp */,
 				69FAB3941AC1FABD00302F42 /* Cylinder.cpp */,
@@ -61,6 +68,7 @@
 				69FAB39A1AC1FABD00302F42 /* Geometry.cpp */,
 				69FAB39B1AC1FABD00302F42 /* Geometry.hpp */,
 				69FAB39C1AC1FABD00302F42 /* gl.cpp */,
+				69FAB3B91AC256A200302F42 /* gl.h */,
 				69FAB39D1AC1FABD00302F42 /* Image.cpp */,
 				69FAB39E1AC1FABD00302F42 /* Image.hpp */,
 				69FAB39F1AC1FABD00302F42 /* Input.cpp */,

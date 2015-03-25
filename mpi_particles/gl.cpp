@@ -16,6 +16,8 @@
 #include <assert.h>
 #include <map>
 
+#include "run.h"
+
 #define MIN(a,b) (a > b ? b : a)
 #define MAX(a,b) (a > b ? a : b)
 
@@ -117,13 +119,6 @@ GLFWwindow *initGLFW() {
 	glfwSetCursorPosCallback(win, mouseMove);
 
 	return win;
-}
-
-void usage(){
-	printf("Usage: points file								  ./GLdemo -f points.txt\n");
-	printf("       This text:                                 ./GLdemo -h\n");
-	printf("       runtime speed:                             -s 10\n");
-	printf("\n\n");
 }
 
 void process_args(int argc, char **argv, bool *stdin, bool *show_usage, int *file_name_index, double *speed){

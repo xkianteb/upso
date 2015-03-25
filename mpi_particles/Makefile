@@ -5,10 +5,8 @@ CXXFLAGS += -Wall
 # set to -O for optimized, -g for debug; also can use 'make OPT=-g'
 OPT = -O
 
-PROG = mpi
-
 CC = CC
-MPCC = mpicc
+MPCC = mpic++
 CFLAGS = -O3
 LIBS =
 
@@ -18,22 +16,25 @@ CXX = c++
 GLOBJS = Cylinder.o Generic.o Geometry.o Image.o Input.o Shader.o Sphere.o Textures.o View.o Xform.o
 GLOBJS_FULL = Cylinder.cpp Generic.cpp Geometry.cpp Image.cpp Input.cpp Shader.cpp Sphere.cpp Textures.cpp View.cpp Xform.cpp
 
-TARGETS = mpi
+TARGETS = run
 
 all: $(TARGETS)
 
+run: run.o $(GLOBJS) gl.o common.o mpi_code.o
+	$(MPCC) $(OPT) -o run run.o common.o mpi_code.o gl.o $(GLOBJS) $(CFLAGS) $(LDFLAGS) $(LDLIBS)
 
-mpi: $(GLOBJS) mpi.o common.o gl.o
-	$(MPCC) $(OPT) -o $@  $(LDFLAGS) $(LDLIBS) mpi.o common.o gl.o $(GLOBJS)
-
-gl.o: $(GLOBJS)
+gl.o: gl.cpp $(GLOBJS)
 	$(CXX) $(OPT) -c gl.cpp $(GLOBJS_FULL)
+	$(CXX) -MM -o gl.d gl.cpp
 
-mpi.o: mpi.cpp common.h
-	$(MPCC) -c $(CFLAGS) mpi.cpp
+mpi_code.o: mpi_code.cpp common.h
+	$(MPCC) -c $(CFLAGS) mpi_code.cpp
 
 common.o: common.cpp common.h
 	$(CC) -c $(CFLAGS) common.cpp
+
+run.o:
+	$(MPCC) -c $(CFLAGS) run.cpp
 
 # .o from .c or .cxx, also generating dependency file
 %.o: %.cpp
