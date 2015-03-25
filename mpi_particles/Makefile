@@ -12,7 +12,6 @@ LIBS =
 
 CXX = c++
 
-#GLOBJS = Cylinder Generic Geometry Image Input Shader Sphere Textures View Xform
 GLOBJS = Cylinder.o Generic.o Geometry.o Image.o Input.o Shader.o Sphere.o Textures.o View.o Xform.o
 GLOBJS_FULL = Cylinder.cpp Generic.cpp Geometry.cpp Image.cpp Input.cpp Shader.cpp Sphere.cpp Textures.cpp View.cpp Xform.cpp
 
