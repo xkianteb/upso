@@ -20,15 +20,12 @@ TARGETS = run
 
 all: $(TARGETS)
 
-run: run.o $(GLOBJS) gl.o common.o mpi_code.o
-	$(MPCC) $(OPT) -o run run.o common.o mpi_code.o gl.o $(GLOBJS) $(CFLAGS) $(LDFLAGS) $(LDLIBS)
+run: run.o $(GLOBJS) gl.o common.o
+	$(MPCC) $(OPT) -o run run.o common.o gl.o $(GLOBJS) $(CFLAGS) $(LDFLAGS) $(LDLIBS)
 
 gl.o: gl.cpp $(GLOBJS)
 	$(CXX) $(OPT) -c gl.cpp $(GLOBJS_FULL)
 	$(CXX) -MM -o gl.d gl.cpp
-
-mpi_code.o: mpi_code.cpp common.h
-	$(MPCC) -c $(CFLAGS) mpi_code.cpp
 
 common.o: common.cpp common.h
 	$(CC) -c $(CFLAGS) common.cpp

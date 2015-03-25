@@ -24,12 +24,9 @@ int main( int argc, char **argv ){
     int n = read_int( argc, argv, "-n", 1000 );
 	
 	
-    char *savename;
-	bool to_stdout = false;
+    char *savename = NULL;
 	if(find_option(argc, argv, "-o") >= 0){
 		savename = read_string( argc, argv, "-o", NULL );
-	}else{
-		to_stdout = true;
 	}
     
     //
