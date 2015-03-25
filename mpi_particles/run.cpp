@@ -4,8 +4,11 @@
 #include <assert.h>
 #include "common.h"
 #include "gl.h"
+#include <thread>
+#include <chrono>
 
 #define TIMESTAMPS 10000
+#define DRAW_DELAY 1
 
 void usage(){
 	printf( "Options:\n" );
@@ -85,11 +88,6 @@ int main( int argc, char **argv ){
 		timesteps = read_int( argc, argv, "-t", NSTEPS );
 	}
 	
-	if(!savename && !input_file){
-		usage();
-		exit(1);
-	}
-	
     particle_t *particles = (particle_t*) malloc( num_particles * sizeof(particle_t) );
 	
 	
@@ -116,23 +114,22 @@ int main( int argc, char **argv ){
 	
     int particle_per_proc = (num_particles + computing_procs - 1) / computing_procs;
 	if(rank == 0){
-		printf("computing procs: %i\tparticles per proc: %i\n", computing_procs, particle_per_proc);
+		printf("computing procs: %i\tparticles: %i\tparticles per proc: %i\n", computing_procs, num_particles, particle_per_proc);
 		fflush(stdout);
 	}
 	
     int *partition_offsets = (int*) malloc( (n_proc) * sizeof(int) );
     for( int i = 0; i < n_proc+1; i++ ){
         partition_offsets[i] = min( i * particle_per_proc, num_particles );
-		if(rank == 0) {	printf("offsets: %i %i\n", i, partition_offsets[i]);}
+		//if(rank == 0) {	printf("offsets: %i %i\n", i, partition_offsets[i]);}
 	}
     
     int *partition_sizes = (int*) malloc( n_proc * sizeof(int) );
     for( int i = 0; i < n_proc; i++ ){
 	
         partition_sizes[i] = (i == n_proc-1) ? 0 : partition_offsets[i+1] - partition_offsets[i];
-		if(rank == 0) {	printf("sizes: %i %i\n", i, partition_sizes[i]);}
+		//if(rank == 0) {	printf("sizes: %i %i\n", i, partition_sizes[i]);}
 	}
-	fflush(stdout);
     
     //
     //  allocate storage for local partition
@@ -148,6 +145,34 @@ int main( int argc, char **argv ){
         init_particles( num_particles, particles );
 	}
 	
+	bool first = true;
+	GLFWwindow *win = NULL;
+	
+	Textures *tex;
+	unsigned int *sphere_draw_ids;
+	Vec<3> *points;
+	Vec<3> *last_points;
+	AppContext *appctx = NULL;
+	bool should_break = false;
+	
+	double radius = 15;
+	double now = glfwGetTime();
+	
+	if(rank == gl_proc_rank){
+		setup_gl(&win);
+		
+		AppContext ac(win);
+		appctx = &ac;
+		
+		Textures tex1;
+		tex = &tex1;
+		
+		points = (Vec<3> *) malloc(num_particles * sizeof(Vec<3>));
+		last_points = (Vec<3> *) malloc(num_particles * sizeof(Vec<3>));
+		sphere_draw_ids = (unsigned int *) malloc(num_particles * sizeof(unsigned int));
+		
+	}
+	
     MPI_Scatterv( particles, partition_sizes, partition_offsets, PARTICLE, local, nlocal, PARTICLE, 0, MPI_COMM_WORLD );
 	
     //
@@ -161,10 +186,40 @@ int main( int argc, char **argv ){
         MPI_Allgatherv( local, nlocal, PARTICLE, particles, partition_sizes, partition_offsets, PARTICLE, MPI_COMM_WORLD );
 		
         if(rank == gl_proc_rank){
+			
+			
 			if(fsave){
 				save( fsave, num_particles, particles );
 			}else{
 				// write to GL
+				
+				
+				while(glfwGetTime() - now < DRAW_DELAY){
+					should_break = poll_input(win, appctx);
+					
+					if(should_break){
+						break;
+					}
+					// sleep for a microsecond
+					std::this_thread::sleep_for(std::chrono::nanoseconds(1000));
+				}
+				
+				for(int i = 0; i < num_particles; i++){
+					points[i].x = particles[i].x;
+					points[i].y = particles[i].y;
+				}
+				
+				if(first){
+					printf("Initializing spheres\n");
+					initialize_spheres_and_gl(win, *tex, appctx, &sphere_draw_ids, points, num_particles, radius, &last_points);
+					printf("draws : %u\n", appctx->geom.numDraws);
+					first = false;
+				}
+				redraw_spheres(appctx, win, points, num_particles, sphere_draw_ids, &last_points);
+				
+				
+				should_break = poll_input(win, appctx);
+				now = glfwGetTime();
 				
 			}
 		}else{
@@ -186,6 +241,12 @@ int main( int argc, char **argv ){
 			for( int i = 0; i < nlocal; i++ )
 				move( local[i] );
 		}
+		
+		MPI_Bcast(&should_break, 1, MPI::BOOL, gl_proc_rank, MPI_COMM_WORLD);
+		
+		if(should_break){
+			break;
+		}
     }
     simulation_time = read_timer( ) - simulation_time;
     
@@ -196,6 +257,11 @@ int main( int argc, char **argv ){
     //
     //  release resources
     //
+	
+	if(rank == gl_proc_rank && win){
+		glfwDestroyWindow(win);
+		glfwTerminate();
+	}
     free( partition_offsets );
     free( partition_sizes );
     free( local );

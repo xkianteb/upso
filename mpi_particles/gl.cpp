@@ -10,12 +10,11 @@
 #include "Sphere.hpp"
 #include "Vec.inl"
 
-#include <GL/glew.h>
-#include <GLFW/glfw3.h>
 #include <stdio.h>
 #include <assert.h>
 #include <map>
 
+#include "gl.h"
 #include "run.h"
 #include "common.h"
 
@@ -24,20 +23,8 @@
 #define MIN(a,b) (a > b ? b : a)
 #define MAX(a,b) (a > b ? a : b)
 
-// collected state for access in callbacks
-struct AppContext {
-	Geometry geom;				  // drawing data
-	View view;					  // viewing data
-	Input input;				  // user interface data
-	bool redraw;				  // true if we need to redraw
 
-	AppContext(GLFWwindow *win) : view(win) {
-		redraw = true;
 
-		// store context pointer to access application data from callbacks
-		glfwSetWindowUserPointer(win, this);
-	}
-};
 
 ///////
 // GLFW callbacks must use extern "C"
@@ -72,6 +59,7 @@ extern "C" {
 		appctx->redraw |= appctx->input.keyPress(appctx->geom, *win, key, action, mods);
 	}
 }
+
 
 // initialize GLFW - windows and interaction
 GLFWwindow *initGLFW() {
@@ -217,6 +205,53 @@ void read_input(bool verbose, FILE *fp, Vec<3> **points, int *num_particles, int
 	
 }
 
+void setup_gl(GLFWwindow **win){
+	(*win) = initGLFW();
+	assert(win);				// window must exist
+}
+
+void initialize_spheres_and_gl(GLFWwindow *win, Textures tex, AppContext *appctx, unsigned int **sphere_draw_ids, Vec<3> *points, int num_particles, double radius, Vec<3> **current_points){
+	
+	for(int i = 0; i < num_particles; i++){
+		Sphere sph1(appctx->geom, tex, radius, Vec3(points[i].x, points[i].y, 1) , 1);
+		(*sphere_draw_ids)[i] = sph1.drawID;
+		
+		printf("init draw id: %i %u %u %lf %lf radius: %lf\n",i , (*sphere_draw_ids)[i],sph1.drawID, points[i].x,points[i].y,radius);
+		(*current_points)[i].x = points[i].x;
+		(*current_points)[i].y = points[i].y;
+	}
+
+	appctx->geom.finalizeDrawData();
+	appctx->view.update(win);
+}
+
+void redraw_spheres(AppContext *appctx, GLFWwindow *win, Vec<3> *points, int num_particles, unsigned int *sphere_draw_ids, Vec<3> **current_points){
+	for(int i = 0; i < num_particles; i++){
+		printf("draw id: %i %u %lf %lf\n",i , sphere_draw_ids[i], points[i].x, points[i].y);
+	
+		Xform &xform = appctx->geom.getModelUniforms( sphere_draw_ids[i] ).modelMats;
+		Vec<3> m = Vec3(points[i].x, points[i].y, 0);
+		m.xy = m.xy - (*current_points)[i].xy;
+		(*current_points)[i].xy = points[i].xy;
+		xform = xform * Xform::translate( m );
+	}
+	
+	// clear old screen contents then draw
+	glClearColor(1.f, 1.f, 1.f, 1.f);
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+	appctx->geom.draw();
+	glfwSwapBuffers(win);
+}
+
+bool poll_input(GLFWwindow *win, AppContext *appctx){
+	glfwPollEvents();		// wait for user input
+	appctx->input.keyUpdate(appctx->geom, *win);
+	if(glfwWindowShouldClose(win)){
+		
+		return true;
+	}
+	return false;
+}
 
 int draw_data(Vec<3> *points, int num_particles, int num_points, double min_x, double min_y, double max_x, double max_y, double radius){
 	
@@ -240,7 +275,7 @@ int draw_data(Vec<3> *points, int num_particles, int num_points, double min_x, d
 	double desired_height = 150.0;
 	double scale = max_x > max_y ? desired_height / max_x : desired_height / max_y;
 	
-	// This math is kinda hacked
+	// This math is kinda hacked, but it gets good results
 	radius = 0.5 * radius * scale;
 	
 	unsigned int i = 0;

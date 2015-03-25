@@ -51,7 +51,6 @@ public:
 
 private:
 	// parameters for each draw
-	unsigned int numDraws;		// number of models to draw
 	int baseVertex[MAX_DRAWS];	// starting vertex for each draw
 	int indexCount[MAX_DRAWS];	// number of indices for each draw
 	Index baseIndex[MAX_DRAWS]; // starting index
@@ -98,6 +97,8 @@ public: // public member functions
 
 	// draw current geometry
 	void draw() const;
+	
+	unsigned int numDraws;		// number of models to draw
 };
 
 #endif
