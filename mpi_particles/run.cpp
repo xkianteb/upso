@@ -9,9 +9,9 @@ void usage(){
 	printf( "Options:\n" );
 	printf( "-h            : this text\n" );
 	printf( "-p <int>      : set the number of particles\n" );
-	printf( "-n <int>      : set the number of MPI cores to use (default 1)\n" );
-	printf( "-o <filename> : specify the output file name for text. Will draw 3d otherwise\n" );
-	printf( "-f points.txt : Load points from this file instead\n");
+	printf( "-n <int>      : set the number of MPI cores to use (default 1, and modifiable while running)\n" );
+	printf( "-o <filename> : specify the output file name for logging in background\n" );
+	printf( "-f <filename> : Load points from this file instead of generating\n");
 }
 
 int main( int argc, char **argv ){
