@@ -11,9 +11,11 @@ void usage(){
 	printf( "Options:\n" );
 	printf( "-h            : this text\n" );
 	printf( "-p <int>      : set the number of particles (default 2)\n" );
-	printf( "-o <filename> : specify the output file name for logging in background (can be \"stdout\" for stdout)\n" );
+	printf( "-o <filename> : specify the output file name for logging instead of drawing 3d (can be \"stdout\" for stdout)\n" );
 	printf( "-i <filename> : Load points from this file instead of generating flow (can be \"stdin\" for stdin) (overrides all other settings)\n");
 	printf( "-t <int>      : set the number of timesteps to calculate, default infinite, but %u with -o present\n", NSTEPS );
+	
+	printf("\n\nEither -o or -i must be set.\n");
 	
 }
 
@@ -23,16 +25,14 @@ int main( int argc, char **argv ){
 		usage();
 		exit(0);
     }
-
 	
-    //
+	//
     //  set up MPI
     //
     int n_proc, rank;
     MPI_Init( &argc, &argv );
     MPI_Comm_size( MPI_COMM_WORLD, &n_proc );
     MPI_Comm_rank( MPI_COMM_WORLD, &rank );
-
 	
     char *input_file = NULL;
 	if(find_option(argc, argv, "-i") >= 0){
@@ -41,7 +41,7 @@ int main( int argc, char **argv ){
 	bool read_from_stdin = input_file && str_equals(input_file, "stdin");
 	
 	
-	int num_particles;
+	int num_particles = 2;
 	
 	double min_x = INT_MAX;
 	double max_x = INT_MIN;
@@ -85,6 +85,11 @@ int main( int argc, char **argv ){
 		timesteps = read_int( argc, argv, "-t", NSTEPS );
 	}
 	
+	if(!savename && !input_file){
+		usage();
+		exit(1);
+	}
+	
     particle_t *particles = (particle_t*) malloc( num_particles * sizeof(particle_t) );
 	
 	
@@ -100,14 +105,34 @@ int main( int argc, char **argv ){
     //
     //  set up the data partitioning across processors
     //
-    int particle_per_proc = (num_particles + n_proc - 1) / n_proc;
-    int *partition_offsets = (int*) malloc( (n_proc+1) * sizeof(int) );
-    for( int i = 0; i < n_proc+1; i++ )
+	
+	int computing_procs = n_proc - 1;
+	int gl_proc_rank = n_proc-1;
+	
+	if(computing_procs == 0){
+		fprintf(stderr, "Error, need to assign at least 2 cores. 1 for GL, 1+ for MPI\n");
+		exit(1);
+	}
+	
+    int particle_per_proc = (num_particles + computing_procs - 1) / computing_procs;
+	if(rank == 0){
+		printf("computing procs: %i\tparticles per proc: %i\n", computing_procs, particle_per_proc);
+		fflush(stdout);
+	}
+	
+    int *partition_offsets = (int*) malloc( (n_proc) * sizeof(int) );
+    for( int i = 0; i < n_proc+1; i++ ){
         partition_offsets[i] = min( i * particle_per_proc, num_particles );
+		if(rank == 0) {	printf("offsets: %i %i\n", i, partition_offsets[i]);}
+	}
     
     int *partition_sizes = (int*) malloc( n_proc * sizeof(int) );
-    for( int i = 0; i < n_proc; i++ )
-        partition_sizes[i] = partition_offsets[i+1] - partition_offsets[i];
+    for( int i = 0; i < n_proc; i++ ){
+	
+        partition_sizes[i] = (i == n_proc-1) ? 0 : partition_offsets[i+1] - partition_offsets[i];
+		if(rank == 0) {	printf("sizes: %i %i\n", i, partition_sizes[i]);}
+	}
+	fflush(stdout);
     
     //
     //  allocate storage for local partition
@@ -119,10 +144,12 @@ int main( int argc, char **argv ){
     //  initialize and distribute the particles
     //
     set_size( num_particles );
-    if( rank == 0 )
+    if( rank == 0 ){
         init_particles( num_particles, particles );
+	}
+	
     MPI_Scatterv( particles, partition_sizes, partition_offsets, PARTICLE, local, nlocal, PARTICLE, 0, MPI_COMM_WORLD );
-    
+	
     //
     //  simulate a number of time steps
     //
@@ -132,33 +159,39 @@ int main( int argc, char **argv ){
         //  collect all global data locally (not good idea to do)
         //
         MPI_Allgatherv( local, nlocal, PARTICLE, particles, partition_sizes, partition_offsets, PARTICLE, MPI_COMM_WORLD );
+		
+        if(rank == gl_proc_rank){
+			if(fsave){
+				save( fsave, num_particles, particles );
+			}else{
+				// write to GL
+				
+			}
+		}else{
+			// rank n-1 has to only do GL/output
         
-        //
-        //  save current step if necessary (slightly different semantics than in other codes)
-        //
-        if( fsave && (step%SAVEFREQ) == 0 )
-            save( fsave, num_particles, particles );
-        
-        //
-        //  compute all fnum_particlesrces
-        //
-        for( int i = 0; i < nlocal; i++ )
-        {
-            local[i].ax = local[i].ay = 0;
-            for (int j = 0; j < num_particles; j++ )
-                apply_force( local[i], particles[j] );
-        }
-        
-        //
-        //  move particles
-        //
-        for( int i = 0; i < nlocal; i++ )
-            move( local[i] );
+			//
+			//  compute all fnum_particlesrces
+			//
+			for( int i = 0; i < nlocal; i++ )
+			{
+				local[i].ax = local[i].ay = 0;
+				for (int j = 0; j < num_particles; j++ )
+					apply_force( local[i], particles[j] );
+			}
+			
+			//
+			//  move particles
+			//
+			for( int i = 0; i < nlocal; i++ )
+				move( local[i] );
+		}
     }
     simulation_time = read_timer( ) - simulation_time;
     
-    if( rank == 0 )
-        printf( "n = %d, n_procs = %d, simulation time = %g s\n", num_particles, n_proc, simulation_time );
+    if( rank == 0 ){
+        printf( "n = %d, n_procs = %d (MPI procs = %d), simulation time = %g s\n", num_particles, n_proc, computing_procs, simulation_time );
+	}
     
     //
     //  release resources
