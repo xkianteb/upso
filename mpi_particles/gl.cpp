@@ -21,10 +21,6 @@
 #define MIN(a,b) (a > b ? b : a)
 #define MAX(a,b) (a > b ? a : b)
 
-#define SCALAR 1.0
-#define POINT_SCALAR 1.0
-#define DRAW_DELAY 0.1
-
 // collected state for access in callbacks
 struct AppContext {
 	Geometry geom;				  // drawing data
@@ -121,39 +117,6 @@ GLFWwindow *initGLFW() {
 	return win;
 }
 
-void process_args(int argc, char **argv, bool *stdin, bool *show_usage, int *file_name_index, double *speed){
-    if(argc < 2){
-        return;
-    }
-    (*stdin) = strcmp("-", argv[1]) == 0;
-    int i = 0;
-    bool error = false;
-    // skip ./trace
-    for(i = 1; i < argc; i++){
-        if(strcmp("-f", argv[i]) == 0){
-            if(i+1 < argc){
-                (*file_name_index) = i+1;
-            }else{
-                error = true;
-            }
-        }else if(strcmp("-s", argv[i]) == 0){
-            if(i+1 < argc){
-                sscanf(argv[i+1], "%lf", speed);
-            }else{
-                error = true;
-			}
-		}else if(strcmp("-h", argv[i]) == 0){
-			(*show_usage) = true;
-			return;
-		}
-    }
-    if(error){
-        fprintf(stderr, "invalid arguments\n");
-        usage();
-        exit(1);
-    }
-}
-
 bool str_equals(char *a, char *b){
     return strcmp(a, b) == 0;
 }
@@ -234,7 +197,7 @@ void read_input(bool verbose, FILE *fp, AppContext *appctx, Textures tex, Vec<3>
 			//printf("1 %u %u %x\n", space_for_points, *num_points, *points);
 			//fflush(stdout);
 			sscanf(line, "%lf %lf\n", &x, &y );
-			(*points)[*num_points] = Vec3(x, y, 1) * POINT_SCALAR;
+			(*points)[*num_points] = Vec3(x, y, 1);
 			(*min_x) = MIN( *min_x, (*points)[*num_points].x );
 			(*max_x) = MAX( *max_x, (*points)[*num_points].x );
 			(*min_y) = MIN( *min_y, (*points)[*num_points].y );
@@ -254,78 +217,21 @@ void read_input(bool verbose, FILE *fp, AppContext *appctx, Textures tex, Vec<3>
 	}
 	
 }
-/*
 
-int main(int argc, char *argv[]) {
-	
-	bool read_stdin = false;
-    int file_name_index = -1;
-	bool show_usage = false;
-	bool verbose = false;
-	unsigned int base_path_size = 256;
-	char *base_path = (char *) malloc(base_path_size * sizeof(char));
-	char *full_read_file = (char *) malloc(base_path_size * sizeof(char));
-	memset(base_path, 0, base_path_size * sizeof(char));
-	memset(full_read_file, 0, base_path_size * sizeof(char));
-	bool interactive = false;
-	unsigned int points_used_so_far = 0;
-	double speed = 10.0;
+/*
+void setup_gl(){
 	double min_x = INT_MAX;
 	double max_x = INT_MIN;
 	double min_y = INT_MAX;
 	double max_y = INT_MIN;
-	double density = 0;
 	
-	// set up window
 	GLFWwindow *win = initGLFW();
 	assert(win);				// window must exist
-
-	// drawing infrastructure
+	
 	AppContext appctx(win);
 	Textures tex;
 	
-    if(argc > 1){
-        process_args(argc, argv, &read_stdin, &show_usage, &file_name_index, &speed);
-    }
-
-	if(show_usage || (interactive && file_name_index == -1)){
-		usage();
-		exit(0);
-	}
-    
-    FILE *read_pointer = NULL;
-    
-    if(read_stdin){
-        fprintf(stderr, "Reading from stdin\n");
-        read_pointer = stdin;
-	}else if(file_name_index > -1){
-		
-		memcpy(full_read_file, base_path, strlen(base_path) * sizeof(char));
-		memcpy(&full_read_file[strlen(base_path)], argv[file_name_index], strlen(argv[file_name_index]) * sizeof(char));
-		
-        fprintf(stderr, "reading from %s\n", full_read_file);
-        read_pointer = fopen(full_read_file, "r");
-    }else{
-		usage();
-		exit(0);
-	}
-	
-    Vec<3> *points = 0;
-	unsigned int num_points = 0;
-	unsigned int num_particles = 0;
-    
 	read_input(verbose, read_pointer, &appctx, tex, &points, &num_points, &num_particles, &min_x, &max_x, &min_y, &max_y, &density);
-	printf("Finished reading file\n");
-	fflush(stdout);
-
-	if(!read_stdin && read_pointer != stdin){
-		fclose(read_pointer);
-	}
-
-	//printf("Read %u verts, %u texture_coords, %u norms, %u faces\n", num_vertices, num_texture_coords, num_normal_lines, num_faces);
-	printf("Read %u points\n", num_points);
-	
-	unsigned int i = 0;
 	
 	// do some processing on the points
 	printf("x range: (%lf,%lf), y range: (%lf,%lf)\n", min_x, max_x, min_y, max_y);
@@ -335,6 +241,7 @@ int main(int argc, char *argv[]) {
 	double y_width = min_y + (max_y - min_y) * 0.5;
 	max_y -= y_width;
 	min_y -= y_width;
+	
 	
 	double desired_height = 150.0;
 	double scale = max_x > max_y ? desired_height / max_x : desired_height / max_y;
@@ -358,7 +265,7 @@ int main(int argc, char *argv[]) {
 	//printf("radius: %lf\n",radius);
 	
 	for(points_used_so_far = 0; points_used_so_far < num_particles; points_used_so_far++){
-		Sphere sph1(appctx.geom, tex, radius, points[points_used_so_far], SCALAR);
+		Sphere sph1(appctx.geom, tex, radius, points[points_used_so_far], 1);
 		sphere_draw_ids[points_used_so_far] = sph1.drawID;
 		current_points[points_used_so_far].x = points[points_used_so_far].x;
 		current_points[points_used_so_far].y = points[points_used_so_far].y;
@@ -418,6 +325,78 @@ int main(int argc, char *argv[]) {
 
 	glfwDestroyWindow(win);
 	glfwTerminate();
+	
+}
+/*
+
+int main(int argc, char *argv[]) {
+	
+	bool read_stdin = false;
+    int file_name_index = -1;
+	bool show_usage = false;
+	bool verbose = false;
+	unsigned int base_path_size = 256;
+	char *base_path = (char *) malloc(base_path_size * sizeof(char));
+	char *full_read_file = (char *) malloc(base_path_size * sizeof(char));
+	memset(base_path, 0, base_path_size * sizeof(char));
+	memset(full_read_file, 0, base_path_size * sizeof(char));
+	bool interactive = false;
+	unsigned int points_used_so_far = 0;
+	double speed = 10.0;
+	
+	double density = 0;
+	
+	// set up window
+	
+
+	// drawing infrastructure
+	
+	
+    if(argc > 1){
+        process_args(argc, argv, &read_stdin, &show_usage, &file_name_index, &speed);
+    }
+
+	if(show_usage || (interactive && file_name_index == -1)){
+		usage();
+		exit(0);
+	}
+    
+    FILE *read_pointer = NULL;
+    
+    if(read_stdin){
+        fprintf(stderr, "Reading from stdin\n");
+        read_pointer = stdin;
+	}else if(file_name_index > -1){
+		
+		memcpy(full_read_file, base_path, strlen(base_path) * sizeof(char));
+		memcpy(&full_read_file[strlen(base_path)], argv[file_name_index], strlen(argv[file_name_index]) * sizeof(char));
+		
+        fprintf(stderr, "reading from %s\n", full_read_file);
+        read_pointer = fopen(full_read_file, "r");
+    }else{
+		usage();
+		exit(0);
+	}
+	
+    Vec<3> *points = 0;
+	unsigned int num_points = 0;
+	unsigned int num_particles = 0;
+    
+	
+	printf("Finished reading file\n");
+	fflush(stdout);
+
+	if(!read_stdin && read_pointer != stdin){
+		fclose(read_pointer);
+	}
+
+	//printf("Read %u verts, %u texture_coords, %u norms, %u faces\n", num_vertices, num_texture_coords, num_normal_lines, num_faces);
+	printf("Read %u points\n", num_points);
+	
+	unsigned int i = 0;
+	
+	
+	
 
 	return 0;
 }
