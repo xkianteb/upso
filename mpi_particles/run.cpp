@@ -11,9 +11,9 @@ void usage(){
 	printf( "Options:\n" );
 	printf( "-h            : this text\n" );
 	printf( "-p <int>      : set the number of particles (default 2)\n" );
-	printf( "-o <filename> : specify the output file name for logging in background\n" );
-	printf( "-i <filename> : Load points from this file instead of generating flow (overrides all other settings)\n");
-	printf( "-t <int>      : set the number of timesteps to calculate, default infinite, but %u with -o implemented\n", NSTEPS );
+	printf( "-o <filename> : specify the output file name for logging in background (can be \"stdout\" for stdout)\n" );
+	printf( "-i <filename> : Load points from this file instead of generating flow (can be \"stdin\" for stdin) (overrides all other settings)\n");
+	printf( "-t <int>      : set the number of timesteps to calculate, default infinite, but %u with -o present\n", NSTEPS );
 	
 }
 
@@ -38,6 +38,7 @@ int main( int argc, char **argv ){
 	if(find_option(argc, argv, "-i") >= 0){
 		input_file = read_string( argc, argv, "-i", NULL );
 	}
+	bool read_from_stdin = input_file && str_equals(input_file, "stdin");
 	
 	
 	int num_particles;
@@ -46,17 +47,19 @@ int main( int argc, char **argv ){
 	double max_x = INT_MIN;
 	double min_y = INT_MAX;
 	double max_y = INT_MIN;
-	double density = 0.1;
 	
 	if(input_file){
 		
 		if(rank == 0){
 			int num_points;
-			FILE *fp = fopen(input_file, "r");
+			FILE *fp = read_from_stdin ? stdin : fopen(input_file, "r");
 			Vec<3> *points = 0;
-			read_input(false, fp, &points, &num_particles, &num_points, &min_x, &max_x, &min_y, &max_y, &density);
-			fclose(fp);
-			draw_data(points, num_particles, num_points, min_x, min_y, max_x, max_y);
+			double radius;
+			read_input(false, fp, &points, &num_particles, &num_points, &min_x, &max_x, &min_y, &max_y, &radius);
+			if(!read_from_stdin){
+				fclose(fp);
+			}
+			draw_data(points, num_particles, num_points, min_x, min_y, max_x, max_y, radius);
 		}
 		
 		MPI_Barrier(MPI_COMM_WORLD);
@@ -74,7 +77,7 @@ int main( int argc, char **argv ){
 	if(find_option(argc, argv, "-o") >= 0){
 		savename = read_string( argc, argv, "-o", NULL );
 	}
-	
+	bool write_to_stdout = savename && str_equals(savename, "stdout");
 	
 	int timesteps = savename ? NSTEPS : 0;
 	
@@ -88,7 +91,7 @@ int main( int argc, char **argv ){
     //
     //  allocate generic resources
     //
-    FILE *fsave = savename && rank == 0 ? fopen( savename, "w" ) : NULL;
+    FILE *fsave = savename && rank == 0 ? (write_to_stdout ? stdout : fopen( savename, "w" )) : NULL;
     
     MPI_Datatype PARTICLE;
     MPI_Type_contiguous( 6, MPI_DOUBLE, &PARTICLE );

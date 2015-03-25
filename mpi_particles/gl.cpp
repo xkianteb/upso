@@ -19,7 +19,7 @@
 #include "run.h"
 #include "common.h"
 
-#define DRAW_DELAY 0.1
+#define DRAW_DELAY 0.001
 
 #define MIN(a,b) (a > b ? b : a)
 #define MAX(a,b) (a > b ? a : b)
@@ -146,7 +146,7 @@ void get_space_for_items(unsigned int *space_for_items, int *num_items, void **i
     }
 }
 
-void read_input(bool verbose, FILE *fp, Vec<3> **points, int *num_particles, int *num_points, double *min_x, double *max_x, double *min_y, double *max_y, double *density){
+void read_input(bool verbose, FILE *fp, Vec<3> **points, int *num_particles, int *num_points, double *min_x, double *max_x, double *min_y, double *max_y, double *radius){
     
     char * line = NULL;
     size_t len = 0;
@@ -188,12 +188,12 @@ void read_input(bool verbose, FILE *fp, Vec<3> **points, int *num_particles, int
             sscanf(line, "n %u\n", num_particles);
 			printf("got num particles: %u\n", *num_particles);
 			
-		}else if(str_equals("d",first_letter)){
+		}else if(str_equals("r",first_letter)){
 			if(verbose)
-				printf("Checking d %s\n", first_term);
+				printf("Checking r %s\n", first_term);
 			
-            sscanf(line, "d %lf\n", density);
-			printf("density: %lf\n", *density);
+            sscanf(line, "r %lf\n", radius);
+			printf("radius: %lf\n", *radius);
 	
 		}else{
 			//printf("0 %u %u %x\n", space_for_points, *num_points, *points);
@@ -218,7 +218,7 @@ void read_input(bool verbose, FILE *fp, Vec<3> **points, int *num_particles, int
 }
 
 
-int draw_data(Vec<3> *points, int num_particles, int num_points, double min_x, double min_y, double max_x, double max_y){
+int draw_data(Vec<3> *points, int num_particles, int num_points, double min_x, double min_y, double max_x, double max_y, double radius){
 	
 	GLFWwindow *win = initGLFW();
 	assert(win);				// window must exist
@@ -239,7 +239,9 @@ int draw_data(Vec<3> *points, int num_particles, int num_points, double min_x, d
 	
 	double desired_height = 150.0;
 	double scale = max_x > max_y ? desired_height / max_x : desired_height / max_y;
-	printf("scale: %lf\n",scale);
+	
+	// This math is kinda hacked
+	radius = 0.5 * radius * scale;
 	
 	unsigned int i = 0;
 	for(i = 0; i < num_points; i++){
@@ -258,8 +260,6 @@ int draw_data(Vec<3> *points, int num_particles, int num_points, double min_x, d
 	Vec<3> current_points[num_particles];
 	unsigned int sphere_draw_ids[num_particles];
 	
-	double radius = 5;
-	//printf("radius: %lf\n",radius);
 	
 	for(points_used_so_far = 0; points_used_so_far < num_particles; points_used_so_far++){
 		Sphere sph1(appctx.geom, tex, radius, Vec3(points[points_used_so_far].x, points[points_used_so_far].y, 1) , 1);
