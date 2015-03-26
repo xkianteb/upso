@@ -10,6 +10,7 @@
 #define TIMESTAMPS 10000
 
 void usage(){
+	printf( "Example run: mpirun -np 2 ./run -p 20 -o stdout | ./run -i stdin\n\n");
 	printf( "Options:\n" );
 	printf( "-h            : this text\n" );
 	printf( "-p <int>      : set the number of particles (default 2)\n" );
