@@ -64,9 +64,7 @@ int main( int argc, char **argv ){
 		return 0;
 	}
 	
-	
 	// Won't get here if '-i' is provided.
-	
 	
     num_particles = read_int( argc, argv, "-p", 2 );
 	
@@ -76,10 +74,10 @@ int main( int argc, char **argv ){
 	}
 	bool write_to_stdout = savename && str_equals(savename, "stdout");
 	
-	int timesteps = savename ? NSTEPS : 0;
+	int timesteps = write_to_stdout ? 0 : NSTEPS;
 	
 	if(find_option(argc, argv, "-t") >= 0){
-		timesteps = read_int( argc, argv, "-t", NSTEPS );
+		timesteps = read_int( argc, argv, "-t", timesteps );
 	}
 	if(rank == 0){
 		fprintf(stderr, "%s Drawing %u timesteps\n",MPI_PREPEND, timesteps);
