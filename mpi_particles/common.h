@@ -1,8 +1,19 @@
 #ifndef COMMON_H__
 #define COMMON_H__
 
+#define MPI_PREPEND "MPI)"
+#define VIZ_PREPEND "VIZ)"
+
 inline int min( int a, int b ) { return a < b ? a : b; }
 inline int max( int a, int b ) { return a > b ? a : b; }
+
+
+struct map{
+	unsigned int height;
+	unsigned int width;
+	// data as one long row-major sequence
+	unsigned short *data;
+};
 
 //
 //  saving parameters
@@ -31,8 +42,8 @@ double read_timer( );
 //
 //  simulation routines
 //
-void set_size( int n );
-void init_particles( int n, particle_t *p );
+void set_size( int n, struct map *map_cfg);
+void init_particles( int n, particle_t *p, struct map *map_cfg );
 void apply_force( particle_t &particle, particle_t &neighbor );
 void move( particle_t &p );
 

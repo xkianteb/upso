@@ -18,7 +18,6 @@
 #include "run.h"
 #include "common.h"
 
-#define VIZ_PREPEND "VIZ)"
 
 ///////
 // GLFW callbacks must use extern "C"

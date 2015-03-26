@@ -9,7 +9,6 @@
 
 #define TIMESTAMPS 10000
 
-#define MPI_PREPEND "MPI)"
 
 void usage(){
 	printf( "Example run: mpirun -np 2 ./run -p 20 -o stdout | ./run -i stdin\n\n");
@@ -24,12 +23,6 @@ void usage(){
 	printf("\n\nEither -o or -i must be set.\n");
 	
 }
-
-struct map{
-	unsigned int height;
-	unsigned int width;
-	unsigned short *rows;
-};
 
 void read_map(FILE *fp, struct map *map_cfg){
 	char * line = NULL;
@@ -48,7 +41,7 @@ void read_map(FILE *fp, struct map *map_cfg){
 	
 	map_cfg->height = 0;
 	map_cfg->width = 0;
-	map_cfg->rows = NULL;
+	map_cfg->data = NULL;
 	unsigned int cells_read = 0;
 	char cell;
 
@@ -72,18 +65,21 @@ void read_map(FILE *fp, struct map *map_cfg){
 			
 			for(int i=0; i < map_cfg->width; i++){
 				sscanf(&line[i], "%c", &cell);
-				map_cfg->rows[cells_read] = cell - '0';
+				map_cfg->data[cells_read] = (unsigned short) (cell - '0');
+				//printf("read cell %i, %c, %u\n", i, cell, map_cfg->data[cells_read]);
 				cells_read++;
 			}
 			
 		}
 
-		if(map_cfg->height > 0 && map_cfg->width > 0){
-			map_cfg->rows = (unsigned short *) malloc (map_cfg->height * map_cfg->width * sizeof(unsigned short));
-			if(!map_cfg->rows){
+		// should only run this once, then it mallocs.
+		if(!map_cfg->data && map_cfg->height > 0 && map_cfg->width > 0){
+			map_cfg->data = (unsigned short *) malloc (map_cfg->height * map_cfg->width * sizeof(unsigned short));
+			if(!map_cfg->data){
 				fprintf(stderr, "%s Couldn't malloc for map config\n", MPI_PREPEND);
 				exit(1);
 			}
+			memset(map_cfg->data, 0, map_cfg->height * map_cfg->width * sizeof(unsigned short));
 		}
 	}
 }
@@ -154,7 +150,7 @@ int main( int argc, char **argv ){
 		map_cfg_file = read_string( argc, argv, "-c", NULL );
 	}
 	
-	struct map map_cfg;
+	struct map map_cfg = {0,0,0};
 	if(rank == 0 && map_cfg_file){
 		FILE *fp = fopen(map_cfg_file, "r");
 		read_map(fp, &map_cfg);
@@ -204,9 +200,9 @@ int main( int argc, char **argv ){
     //
     //  initialize and distribute the particles
     //
-    set_size( num_particles );
+    set_size( num_particles, &map_cfg );
     if( rank == 0 ){
-        init_particles( num_particles, particles );
+        init_particles( num_particles, particles, &map_cfg );
 	}
 	
 	bool first = true;
