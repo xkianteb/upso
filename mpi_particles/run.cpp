@@ -169,15 +169,17 @@ int main( int argc, char **argv ){
 		//
 		for( int i = 0; i < nlocal; i++ ){
 			local[i].ax = local[i].ay = 0;
-			for (int j = 0; j < num_particles; j++ )
+			for (int j = 0; j < num_particles; j++ ){
 				apply_force( local[i], particles[j] );
+			}
 		}
 		
 		//
 		//  move particles
 		//
-		for( int i = 0; i < nlocal; i++ )
+		for( int i = 0; i < nlocal; i++ ){
 			move( local[i] );
+		}
     }
     simulation_time = read_timer( ) - simulation_time;
     
