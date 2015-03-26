@@ -18,13 +18,7 @@
 #include "run.h"
 #include "common.h"
 
-#define DRAW_DELAY 0.001
-
-#define MIN(a,b) (a > b ? b : a)
-#define MAX(a,b) (a > b ? a : b)
-
-
-
+#define DRAW_DELAY 0
 
 ///////
 // GLFW callbacks must use extern "C"
@@ -65,7 +59,10 @@ extern "C" {
 GLFWwindow *initGLFW() {
 	// set error callback before init
 	glfwSetErrorCallback(winError);
-	if (! glfwInit()) return 0;
+	if (! glfwInit()){
+					printf("returning zero\n");fflush(stdout);
+		return 0;
+	}
 
 	// OpenGL version: YOU MAY NEED TO ADJUST VERSION OR OPTIONS!
 	// When figuring out the settings that will work for you, make
@@ -134,8 +131,7 @@ void get_space_for_items(unsigned int *space_for_items, int *num_items, void **i
     }
 }
 
-void read_input(bool verbose, FILE *fp, Vec<3> **points, int *num_particles, int *num_points, double *min_x, double *max_x, double *min_y, double *max_y, double *radius){
-    
+int read_input(bool verbose, FILE *fp, Vec<3> **points, int *num_particles, double *radius){
     char * line = NULL;
     size_t len = 0;
     ssize_t read;
@@ -149,13 +145,12 @@ void read_input(bool verbose, FILE *fp, Vec<3> **points, int *num_particles, int
         fprintf(stderr, "Error reading file.\n");
         exit(1);
     }
-    
-    unsigned int batch_malloc_size = 100;
-	unsigned int space_for_points = 0;
-	double x,y = 0;
-	int values_read = 0;
 	
-	(*num_points) = 0;
+    unsigned int batch_malloc_size = *num_particles;
+	unsigned int space_for_points = *num_particles;
+	double x,y = 0;
+	
+	int num_points = 0;
 	// get space for one to start
 
 	while((read = getline(&line, &len, fp)) != -1){
@@ -168,14 +163,13 @@ void read_input(bool verbose, FILE *fp, Vec<3> **points, int *num_particles, int
 		
 		sscanf(line, "%c", first_letter);
 		
-        
         if(str_equals("n",first_letter)){
 			if(verbose)
 				printf("Checking n %s\n", first_term);
 			
             sscanf(line, "n %u\n", num_particles);
 			printf("got num particles: %u\n", *num_particles);
-			
+			batch_malloc_size = *num_particles;
 		}else if(str_equals("r",first_letter)){
 			if(verbose)
 				printf("Checking r %s\n", first_term);
@@ -185,62 +179,26 @@ void read_input(bool verbose, FILE *fp, Vec<3> **points, int *num_particles, int
 	
 		}else{
 			//printf("0 %u %u %x\n", space_for_points, *num_points, *points);
-			get_space_for_items(&space_for_points, num_points, (void **) points, sizeof(Vec<3>), batch_malloc_size, verbose);
+			get_space_for_items(&space_for_points, &num_points, (void **) points, sizeof(Vec<3>), batch_malloc_size, verbose);
 			sscanf(line, "%lf %lf\n", &x, &y );
-			(*points)[*num_points].x = x;
-			(*points)[*num_points].y = y;
-			(*min_x) = MIN( *min_x, (*points)[*num_points].x );
-			(*max_x) = MAX( *max_x, (*points)[*num_points].x );
-			(*min_y) = MIN( *min_y, (*points)[*num_points].y );
-			(*max_y) = MAX( *max_y, (*points)[*num_points].y );
-			(*num_points)++;
+			(*points)[num_points].x = x;
+			(*points)[num_points].y = y;
+			//printf("stored point %i as %lf %lf\n",num_points, (*points)[num_points].x,(*points)[num_points].y);
+			num_points++;
+			
+			if(num_points == *num_particles){
+				break;
+			}
 		}
 		if(verbose)
 			printf("Finished with line.\n");
 	}
 	if(verbose){
-		printf("Done with initial read\n");
+		printf("Done with read\n");
 		fflush(stdout);
 	}
-	
-}
 
-void setup_gl(GLFWwindow **win){
-	(*win) = initGLFW();
-	assert(win);				// window must exist
-}
-
-void initialize_spheres_and_gl(GLFWwindow *win, Textures tex, AppContext *appctx, unsigned int **sphere_draw_ids, Vec<3> *points, int num_particles, double radius, Vec<3> **current_points){
-	
-	for(int i = 0; i < num_particles; i++){
-		Sphere sph1(appctx->geom, tex, radius, Vec3(points[i].x, points[i].y, 1) , 1);
-		(*sphere_draw_ids)[i] = sph1.drawID;
-		
-		printf("init draw id: %i %u %u %lf %lf radius: %lf\n",i , (*sphere_draw_ids)[i],sph1.drawID, points[i].x,points[i].y,radius);
-		(*current_points)[i].x = points[i].x;
-		(*current_points)[i].y = points[i].y;
-	}
-
-	appctx->geom.finalizeDrawData();
-	appctx->view.update(win);
-}
-
-void redraw_spheres(AppContext *appctx, GLFWwindow *win, Vec<3> *points, int num_particles, unsigned int *sphere_draw_ids, Vec<3> **current_points){
-	for(int i = 0; i < num_particles; i++){
-		printf("draw id: %i %u %lf %lf\n",i , sphere_draw_ids[i], points[i].x, points[i].y);
-	
-		Xform &xform = appctx->geom.getModelUniforms( sphere_draw_ids[i] ).modelMats;
-		Vec<3> m = Vec3(points[i].x, points[i].y, 0);
-		m.xy = m.xy - (*current_points)[i].xy;
-		(*current_points)[i].xy = points[i].xy;
-		xform = xform * Xform::translate( m );
-	}
-	
-	// clear old screen contents then draw
-	glClearColor(1.f, 1.f, 1.f, 1.f);
-	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-	appctx->geom.draw();
-	glfwSwapBuffers(win);
+	return num_points;
 }
 
 bool poll_input(GLFWwindow *win, AppContext *appctx){
@@ -253,16 +211,23 @@ bool poll_input(GLFWwindow *win, AppContext *appctx){
 	return false;
 }
 
-int draw_data(Vec<3> *points, int num_particles, int num_points, double min_x, double min_y, double max_x, double max_y, double radius){
+void scale_points(Vec<3> *points, int num_particles, double *scale, double *radius, bool first_run){
 	
-	GLFWwindow *win = initGLFW();
-	assert(win);				// window must exist
+	double min_x = INT_MAX;
+	double max_x = INT_MIN;
+	double min_y = INT_MAX;
+	double max_y = INT_MIN;
 	
-	AppContext appctx(win);
-	Textures tex;
-	
+	unsigned int i = 0;
+	for(i = 0; i < num_particles; i++){
+		max_x = MAX(max_x, points[i].x);
+		max_y = MAX(max_y, points[i].y);
+		min_x = MIN(min_x, points[i].x);
+		min_y = MIN(min_y, points[i].y);
+	}
+
 	// do some processing on the particles
-	printf("x range: (%lf,%lf), y range: (%lf,%lf)\n", min_x, max_x, min_y, max_y);
+	//printf("x range: (%lf,%lf), y range: (%lf,%lf)\n", min_x, max_x, min_y, max_y);
 	double x_width = min_x + (max_x - min_x) * 0.5;
 	max_x -= x_width;
 	min_x -= x_width;
@@ -270,38 +235,67 @@ int draw_data(Vec<3> *points, int num_particles, int num_points, double min_x, d
 	max_y -= y_width;
 	min_y -= y_width;
 	
-	int points_used_so_far = 0;
-	
 	double desired_height = 150.0;
-	double scale = max_x > max_y ? desired_height / max_x : desired_height / max_y;
+	double possible_scale = max_x > max_y ? desired_height / max_x : desired_height / max_y;
+	if(first_run || possible_scale < (*scale)){
+		(*scale) = possible_scale;
+	}
+
+	//printf("scale: %lf\t\tradius:%lf\t\t",(*scale),radius);
+	if(first_run){
+		// This math is kinda hacked, but it gets good results
+		(*radius) = 0.5 * (*radius) * (*scale);
+		//printf("new radius: %lf\n",(*radius));
+	}
 	
-	// This math is kinda hacked, but it gets good results
-	radius = 0.5 * radius * scale;
-	
-	unsigned int i = 0;
-	for(i = 0; i < num_points; i++){
+	for(i = 0; i < num_particles; i++){
 		points[i].x -= x_width;
 		points[i].y -= y_width;
-		points[i].x *= scale;
-		points[i].y *= scale;
+		points[i].x *= (*scale);
+		points[i].y *= (*scale);
 		max_x = MAX(max_x, points[i].x);
 		max_y = MAX(max_y, points[i].y);
 		min_x = MIN(min_x, points[i].x);
 		min_y = MIN(min_y, points[i].y);
 	}
 	
-	printf("new min max: (%lf, %lf) (%lf, %lf)\n", min_x, min_y, max_x, max_y);
+	//printf("new min max: (%lf, %lf) (%lf, %lf)\n", min_x, min_y, max_x, max_y);
+	
+}
+
+int draw_data(FILE *fp){
+
+	
+	GLFWwindow *win = initGLFW();
+	assert(win);				// window must exist
+	
+	AppContext appctx(win);
+	Textures tex;
+	
+	
+	Vec<3> *points = 0;
+	double radius = 0.01;
+	int num_particles = 0;
+	int points_read = 0;
+	points_read = read_input(false, fp, &points, &num_particles, &radius);
+	if(points_read < num_particles){
+		printf("Out of points\n");
+		return 0;
+	}
+
+	double scale = 1;
+	scale_points(points, num_particles, &scale, &radius, true);
 	
 	Vec<3> current_points[num_particles];
 	unsigned int sphere_draw_ids[num_particles];
+	unsigned int i = 0;
 	
 	
-	for(points_used_so_far = 0; points_used_so_far < num_particles; points_used_so_far++){
-		Sphere sph1(appctx.geom, tex, radius, Vec3(points[points_used_so_far].x, points[points_used_so_far].y, 1) , 1);
-		sphere_draw_ids[points_used_so_far] = sph1.drawID;
-		current_points[points_used_so_far].x = points[points_used_so_far].x;
-		current_points[points_used_so_far].y = points[points_used_so_far].y;
-		//printf("added sphere %u %u at (%f,%f)\n", points_used_so_far, sphere_draw_ids[points_used_so_far], points[points_used_so_far].x,points[points_used_so_far].y);
+	for(i = 0; i < num_particles; i++){
+		Sphere sph1(appctx.geom, tex, radius, Vec3(points[i].x, points[i].y, 1) , 1);
+		sphere_draw_ids[i] = sph1.drawID;
+		current_points[i].x = points[i].x;
+		current_points[i].y = points[i].y;
 	}
 	
 	double now = glfwGetTime();
@@ -310,36 +304,35 @@ int draw_data(Vec<3> *points, int num_particles, int num_points, double min_x, d
 	
 	appctx.view.update(win);
 	
+	bool never_drawn = true;
 
 	// loop until GLFW says it's time to quit
 	while (!glfwWindowShouldClose(win)) {
 		// check for updates while a key is pressed
 		
-		if(glfwGetTime() - now > DRAW_DELAY){
-			
-			if(points_used_so_far >= num_points){
-				printf("Drawn all %u points, breaking\n", num_points);
-				//points_used_so_far = 0;
+		if( glfwGetTime() - now > DRAW_DELAY){
+			// get new points to draw
+			points_read = read_input(false, fp, &points, &num_particles, &radius);
+			if(points_read < num_particles){
+				printf("Out of points\n");
 				break;
 			}
+			scale_points(points, num_particles, &scale, &radius, false);
 			
 			appctx.redraw = true;
-			for(i = 0; i < num_particles && points_used_so_far < num_points; ){
+			for(i = 0; i < num_particles; i++){
 			
 				Xform &xform = appctx.geom.getModelUniforms( sphere_draw_ids[i] ).modelMats;
-				Vec<3> m = Vec3(points[points_used_so_far].x, points[points_used_so_far].y, 0);
+				Vec<3> m = Vec3(points[i].x, points[i].y, 0);
 				m.xy = m.xy - current_points[i].xy;
-				current_points[i].xy = points[points_used_so_far].xy;
+				current_points[i].xy = points[i].xy;
 				xform = xform * Xform::translate( m );
-				
-				i++;
-				(points_used_so_far)++;
 			}
 			
+			appctx.redraw |= appctx.input.keyUpdate(appctx.geom, *win);
+		
 			now = glfwGetTime();
 		}
-		
-		appctx.redraw |= appctx.input.keyUpdate(appctx.geom, *win);
 		
 		// do we need to redraw?
 		if (appctx.redraw) {

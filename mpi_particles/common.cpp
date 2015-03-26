@@ -138,14 +138,16 @@ void move( particle_t &p )
 //
 void save( FILE *f, int n, particle_t *p )
 {
+
     static bool first = true;
     if( first )
     {
-        fprintf( f, "n %d\nr %lf\n", n, cutoff );
+        fprintf( f, "n %d\nr %lf\n", n, cutoff );fflush(f);
         first = false;
     }
-    for( int i = 0; i < n; i++ )
-        fprintf( f, "%g %g\n", p[i].x, p[i].y );
+	for( int i = 0; i < n; i++ ){
+        fprintf( f, "%g %g\n", p[i].x, p[i].y );fflush(f);
+	}
 }
 
 //
