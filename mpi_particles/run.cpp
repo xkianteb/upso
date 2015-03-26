@@ -142,7 +142,6 @@ int main( int argc, char **argv ){
 	unsigned int *sphere_draw_ids;
 	Vec<3> *points;
 	Vec<3> *last_points;
-	bool should_break = false;
 	
 	double radius = 15;
 	double now = glfwGetTime();
@@ -181,11 +180,6 @@ int main( int argc, char **argv ){
 		//
 		for( int i = 0; i < nlocal; i++ )
 			move( local[i] );
-	
-		
-		if(should_break){
-			break;
-		}
     }
     simulation_time = read_timer( ) - simulation_time;
     
