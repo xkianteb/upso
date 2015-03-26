@@ -18,8 +18,6 @@
 #include "run.h"
 #include "common.h"
 
-#define DRAW_DELAY 0
-
 ///////
 // GLFW callbacks must use extern "C"
 extern "C" {
@@ -131,7 +129,7 @@ void get_space_for_items(unsigned int *space_for_items, int *num_items, void **i
     }
 }
 
-int read_input(bool verbose, FILE *fp, Vec<3> **points, int *num_particles, double *radius){
+int read_input(bool verbose, FILE *fp, Vec<3> **points, int *num_particles, double *radius, double *size){
     char * line = NULL;
     size_t len = 0;
     ssize_t read;
@@ -168,7 +166,7 @@ int read_input(bool verbose, FILE *fp, Vec<3> **points, int *num_particles, doub
 				printf("Checking n %s\n", first_term);
 			
             sscanf(line, "n %u\n", num_particles);
-			printf("got num particles: %u\n", *num_particles);
+			fprintf(stderr,"got num particles: %u\n", *num_particles);
 			batch_malloc_size = *num_particles;
 		}else if(str_equals("r",first_letter)){
 			if(verbose)
@@ -176,6 +174,12 @@ int read_input(bool verbose, FILE *fp, Vec<3> **points, int *num_particles, doub
 			
             sscanf(line, "r %lf\n", radius);
 			printf("radius: %lf\n", *radius);
+		}else if(str_equals("s",first_letter)){
+			if(verbose)
+				printf("Checking s %s\n", first_term);
+			
+            sscanf(line, "s %lf\n", size);
+			fprintf(stderr,"size: %lf\n", *size);
 	
 		}else{
 			//printf("0 %u %u %x\n", space_for_points, *num_points, *points);
@@ -211,38 +215,17 @@ bool poll_input(GLFWwindow *win, AppContext *appctx){
 	return false;
 }
 
-void scale_points(Vec<3> *points, int num_particles, double *scale, double *radius, bool first_run){
+void scale_points(Vec<3> *points, int num_particles, double *scale, double *radius, double size, bool first_run){
 	
-	double min_x = INT_MAX;
-	double max_x = INT_MIN;
-	double min_y = INT_MAX;
-	double max_y = INT_MIN;
-	
-	unsigned int i = 0;
-	for(i = 0; i < num_particles; i++){
-		max_x = MAX(max_x, points[i].x);
-		max_y = MAX(max_y, points[i].y);
-		min_x = MIN(min_x, points[i].x);
-		min_y = MIN(min_y, points[i].y);
-	}
-
 	// do some processing on the particles
 	//printf("x range: (%lf,%lf), y range: (%lf,%lf)\n", min_x, max_x, min_y, max_y);
-	double x_width = min_x + (max_x - min_x) * 0.5;
-	max_x -= x_width;
-	min_x -= x_width;
-	double y_width = min_y + (max_y - min_y) * 0.5;
-	max_y -= y_width;
-	min_y -= y_width;
+	double x_width = size * 0.5;
+	double y_width = size * 0.5;
+	int i = 0;
 	
-	double desired_height = 150.0;
-	double possible_scale = max_x > max_y ? desired_height / max_x : desired_height / max_y;
-	if(first_run || possible_scale < (*scale)){
-		(*scale) = possible_scale;
-	}
-
-	//printf("scale: %lf\t\tradius:%lf\t\t",(*scale),radius);
 	if(first_run){
+		double desired_height = 150.0;
+		(*scale) = desired_height / x_width;
 		// This math is kinda hacked, but it gets good results
 		(*radius) = 0.5 * (*radius) * (*scale);
 		//printf("new radius: %lf\n",(*radius));
@@ -253,19 +236,14 @@ void scale_points(Vec<3> *points, int num_particles, double *scale, double *radi
 		points[i].y -= y_width;
 		points[i].x *= (*scale);
 		points[i].y *= (*scale);
-		max_x = MAX(max_x, points[i].x);
-		max_y = MAX(max_y, points[i].y);
-		min_x = MIN(min_x, points[i].x);
-		min_y = MIN(min_y, points[i].y);
 	}
 	
 	//printf("new min max: (%lf, %lf) (%lf, %lf)\n", min_x, min_y, max_x, max_y);
 	
 }
 
-int draw_data(FILE *fp){
+int draw_data(FILE *fp, bool from_stdin){
 
-	
 	GLFWwindow *win = initGLFW();
 	assert(win);				// window must exist
 	
@@ -277,14 +255,15 @@ int draw_data(FILE *fp){
 	double radius = 0.01;
 	int num_particles = 0;
 	int points_read = 0;
-	points_read = read_input(false, fp, &points, &num_particles, &radius);
+	double size = 0;
+	points_read = read_input(false, fp, &points, &num_particles, &radius, &size);
 	if(points_read < num_particles){
-		printf("Out of points\n");
+		fprintf(stderr,"Out of points\n");
 		return 0;
 	}
 
 	double scale = 1;
-	scale_points(points, num_particles, &scale, &radius, true);
+	scale_points(points, num_particles, &scale, &radius, size, true);
 	
 	Vec<3> current_points[num_particles];
 	unsigned int sphere_draw_ids[num_particles];
@@ -309,30 +288,26 @@ int draw_data(FILE *fp){
 	// loop until GLFW says it's time to quit
 	while (!glfwWindowShouldClose(win)) {
 		// check for updates while a key is pressed
-		
-		if( glfwGetTime() - now > DRAW_DELAY){
-			// get new points to draw
-			points_read = read_input(false, fp, &points, &num_particles, &radius);
-			if(points_read < num_particles){
-				printf("Out of points\n");
-				break;
-			}
-			scale_points(points, num_particles, &scale, &radius, false);
-			
-			appctx.redraw = true;
-			for(i = 0; i < num_particles; i++){
-			
-				Xform &xform = appctx.geom.getModelUniforms( sphere_draw_ids[i] ).modelMats;
-				Vec<3> m = Vec3(points[i].x, points[i].y, 0);
-				m.xy = m.xy - current_points[i].xy;
-				current_points[i].xy = points[i].xy;
-				xform = xform * Xform::translate( m );
-			}
-			
-			appctx.redraw |= appctx.input.keyUpdate(appctx.geom, *win);
-		
-			now = glfwGetTime();
+	
+		// get new points to draw
+		points_read = read_input(false, fp, &points, &num_particles, &radius, &size);
+		if(points_read < num_particles){
+			fprintf(stderr, "Out of points\n");
+			break;
 		}
+		scale_points(points, num_particles, &scale, &radius, size, false);
+		
+		appctx.redraw = true;
+		for(i = 0; i < num_particles; i++){
+		
+			Xform &xform = appctx.geom.getModelUniforms( sphere_draw_ids[i] ).modelMats;
+			Vec<3> m = Vec3(points[i].x, points[i].y, 0);
+			m.xy = m.xy - current_points[i].xy;
+			current_points[i].xy = points[i].xy;
+			xform = xform * Xform::translate( m );
+		}
+		
+		appctx.redraw |= appctx.input.keyUpdate(appctx.geom, *win);
 		
 		// do we need to redraw?
 		if (appctx.redraw) {

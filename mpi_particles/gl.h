@@ -35,7 +35,7 @@ struct AppContext {
 };
 
 
-int draw_data(FILE *fp);
+int draw_data(FILE *fp, bool from_stdin);
 
 bool str_equals(char *a, char *b);
 

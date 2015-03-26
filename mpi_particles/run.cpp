@@ -8,7 +8,6 @@
 #include <chrono>
 
 #define TIMESTAMPS 10000
-#define DRAW_DELAY 0.0001
 
 void usage(){
 	printf( "Options:\n" );
@@ -50,7 +49,7 @@ int main( int argc, char **argv ){
 		
 		if(rank == 0){
 			FILE *fp = read_from_stdin ? stdin : fopen(input_file, "r");
-			draw_data(fp);
+			draw_data(fp, read_from_stdin);
 			if(!read_from_stdin){
 				fclose(fp);
 			}
@@ -79,7 +78,9 @@ int main( int argc, char **argv ){
 	if(find_option(argc, argv, "-t") >= 0){
 		timesteps = read_int( argc, argv, "-t", NSTEPS );
 	}
-	
+	if(rank == 0){
+		fprintf(stderr, "Drawing %u timesteps\n",timesteps);
+	}
     particle_t *particles = (particle_t*) malloc( num_particles * sizeof(particle_t) );
 	
 	
@@ -103,11 +104,11 @@ int main( int argc, char **argv ){
 	
     int particle_per_proc = (num_particles + n_proc - 1) / n_proc;
 	if(rank == 0){
-		printf("particles: %i\tparticles per proc: %i\n", num_particles, particle_per_proc);
+		fprintf(stderr, "particles: %i\tparticles per proc: %i\n", num_particles, particle_per_proc);
 		fflush(stdout);
 	}
 	
-    int *partition_offsets = (int*) malloc( (n_proc) * sizeof(int) );
+    int *partition_offsets = (int*) malloc( (n_proc + 1) * sizeof(int) );
     for( int i = 0; i < n_proc+1; i++ ){
         partition_offsets[i] = min( i * particle_per_proc, num_particles );
 	}
@@ -115,7 +116,7 @@ int main( int argc, char **argv ){
     int *partition_sizes = (int*) malloc( n_proc * sizeof(int) );
     for( int i = 0; i < n_proc; i++ ){
 	
-        partition_sizes[i] = (i == n_proc-1) ? 0 : partition_offsets[i+1] - partition_offsets[i];
+        partition_sizes[i] = partition_offsets[i+1] - partition_offsets[i];
 	}
     
     //
@@ -183,7 +184,7 @@ int main( int argc, char **argv ){
     simulation_time = read_timer( ) - simulation_time;
     
     if( rank == 0 ){
-        printf( "n = %d, n_procs = %d, simulation time = %g s\n", num_particles, n_proc, simulation_time );
+        fprintf(stderr, "n = %d, n_procs = %d, simulation time = %g s\n", num_particles, n_proc, simulation_time );
 	}
     
     //

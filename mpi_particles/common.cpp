@@ -142,7 +142,7 @@ void save( FILE *f, int n, particle_t *p )
     static bool first = true;
     if( first )
     {
-        fprintf( f, "n %d\nr %lf\n", n, cutoff );fflush(f);
+        fprintf( f, "n %d\nr %lf\ns %lf\n", n, cutoff, size );fflush(f);
         first = false;
     }
 	for( int i = 0; i < n; i++ ){
