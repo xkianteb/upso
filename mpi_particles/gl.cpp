@@ -18,6 +18,8 @@
 #include "run.h"
 #include "common.h"
 
+#define VIZ_PREPEND "VIZ)"
+
 ///////
 // GLFW callbacks must use extern "C"
 extern "C" {
@@ -83,7 +85,7 @@ GLFWwindow *initGLFW() {
 	glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
 
 	// create window
-	GLFWwindow *win = glfwCreateWindow(800, 800, "OpenGL Demo", 0, 0);
+	GLFWwindow *win = glfwCreateWindow(800, 800, "OpenGL Viz", 0, 0);
 	if (! win) {
 		glfwTerminate();
 		return 0;
@@ -110,9 +112,6 @@ bool str_equals(char *a, char *b){
 void get_space_for_items(unsigned int *space_for_items, int *num_items, void **items, unsigned int item_size, unsigned int batch_size, bool verbose){
     
     if(*space_for_items == 0 || *space_for_items == *num_items){
-		if(verbose)
-			printf("starting malloc\n");
-		fflush(stdout);
         // out of space, or zero
         void *temp = (void *) malloc ((*num_items + batch_size) * item_size);
 		memset(temp, 0, ((*num_items + batch_size) * item_size));
@@ -122,10 +121,6 @@ void get_space_for_items(unsigned int *space_for_items, int *num_items, void **i
 		}
         (*items) = temp;
         (*space_for_items) = *num_items + batch_size;
-		
-		if(verbose)
-	        printf("Now room for %i items, stored: %i\n", *space_for_items, *num_items);
-		fflush(stdout);
     }
 }
 
@@ -140,7 +135,7 @@ int read_input(bool verbose, FILE *fp, Vec<3> **points, int *num_particles, doub
 	memset(&first_letter, 0, temp_str_len);
     
     if(fp == NULL){
-        fprintf(stderr, "Error reading file.\n");
+        fprintf(stderr, "%s Error reading file.\n", VIZ_PREPEND);
         exit(1);
     }
 	
@@ -152,8 +147,6 @@ int read_input(bool verbose, FILE *fp, Vec<3> **points, int *num_particles, doub
 	// get space for one to start
 
 	while((read = getline(&line, &len, fp)) != -1){
-		if(verbose)
-        	printf("read line of length %zu: %s\n", read, line);
         first_term[0] = 0;
 		first_letter[0] = 0;
 		
@@ -162,44 +155,29 @@ int read_input(bool verbose, FILE *fp, Vec<3> **points, int *num_particles, doub
 		sscanf(line, "%c", first_letter);
 		
         if(str_equals("n",first_letter)){
-			if(verbose)
-				printf("Checking n %s\n", first_term);
-			
             sscanf(line, "n %u\n", num_particles);
-			fprintf(stderr,"got num particles: %u\n", *num_particles);
+			fprintf(stderr,"%s got num particles: %u\n",VIZ_PREPEND, *num_particles);
 			batch_malloc_size = *num_particles;
+			
 		}else if(str_equals("r",first_letter)){
-			if(verbose)
-				printf("Checking r %s\n", first_term);
-			
             sscanf(line, "r %lf\n", radius);
-			printf("radius: %lf\n", *radius);
+			fprintf(stderr,"%s radius: %lf\n", VIZ_PREPEND, *radius);
 		}else if(str_equals("s",first_letter)){
-			if(verbose)
-				printf("Checking s %s\n", first_term);
-			
-            sscanf(line, "s %lf\n", size);
-			fprintf(stderr,"size: %lf\n", *size);
+			sscanf(line, "s %lf\n", size);
+			fprintf(stderr,"%s size: %lf\n", VIZ_PREPEND, *size);
 	
 		}else{
-			//printf("0 %u %u %x\n", space_for_points, *num_points, *points);
 			get_space_for_items(&space_for_points, &num_points, (void **) points, sizeof(Vec<3>), batch_malloc_size, verbose);
 			sscanf(line, "%lf %lf\n", &x, &y );
 			(*points)[num_points].x = x;
 			(*points)[num_points].y = y;
-			//printf("stored point %i as %lf %lf\n",num_points, (*points)[num_points].x,(*points)[num_points].y);
 			num_points++;
 			
 			if(num_points == *num_particles){
 				break;
 			}
 		}
-		if(verbose)
-			printf("Finished with line.\n");
-	}
-	if(verbose){
-		printf("Done with read\n");
-		fflush(stdout);
+
 	}
 
 	return num_points;
@@ -258,7 +236,7 @@ int draw_data(FILE *fp, bool from_stdin){
 	double size = 0;
 	points_read = read_input(false, fp, &points, &num_particles, &radius, &size);
 	if(points_read < num_particles){
-		fprintf(stderr,"Out of points\n");
+		fprintf(stderr,"%s Out of points\n", VIZ_PREPEND);
 		return 0;
 	}
 
@@ -295,7 +273,7 @@ int draw_data(FILE *fp, bool from_stdin){
 		// get new points to draw
 		points_read = read_input(false, fp, &points, &num_particles, &radius, &size);
 		if(points_read < num_particles){
-			fprintf(stderr, "Out of points\n");
+			fprintf(stderr, "%s Out of points\n", VIZ_PREPEND);
 			break;
 		}
 		scale_points(points, num_particles, &scale, &radius, size, false);
@@ -312,7 +290,7 @@ int draw_data(FILE *fp, bool from_stdin){
 		
 		duration = glfwGetTime() - now;
 		if(duration > fps_seconds){
-			fprintf(stderr,"FPS:\t%lf\n", frames / duration);
+			fprintf(stderr,"%s FPS:\t%lf\n", VIZ_PREPEND, frames / duration);
 			frames = 0;
 			now = glfwGetTime();
 		}

@@ -9,6 +9,8 @@
 
 #define TIMESTAMPS 10000
 
+#define MPI_PREPEND "MPI)"
+
 void usage(){
 	printf( "Example run: mpirun -np 2 ./run -p 20 -o stdout | ./run -i stdin\n\n");
 	printf( "Options:\n" );
@@ -80,7 +82,7 @@ int main( int argc, char **argv ){
 		timesteps = read_int( argc, argv, "-t", NSTEPS );
 	}
 	if(rank == 0){
-		fprintf(stderr, "Drawing %u timesteps\n",timesteps);
+		fprintf(stderr, "%s Drawing %u timesteps\n",MPI_PREPEND, timesteps);
 	}
     particle_t *particles = (particle_t*) malloc( num_particles * sizeof(particle_t) );
 	
@@ -105,7 +107,7 @@ int main( int argc, char **argv ){
 	
     int particle_per_proc = (num_particles + n_proc - 1) / n_proc;
 	if(rank == 0){
-		fprintf(stderr, "particles: %i\tparticles per proc: %i\n", num_particles, particle_per_proc);
+		fprintf(stderr, "%s particles: %i\tparticles per proc: %i\n", MPI_PREPEND, num_particles, particle_per_proc);
 		fflush(stdout);
 	}
 	
@@ -188,7 +190,7 @@ int main( int argc, char **argv ){
     simulation_time = read_timer( ) - simulation_time;
     
     if( rank == 0 ){
-        fprintf(stderr, "n = %d, n_procs = %d, simulation time = %g s\n", num_particles, n_proc, simulation_time );
+        fprintf(stderr, "%s n = %d, n_procs = %d, simulation time = %g s\n", MPI_PREPEND, num_particles, n_proc, simulation_time );
 	}
     
     //
