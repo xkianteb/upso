@@ -277,13 +277,16 @@ int draw_data(FILE *fp, bool from_stdin){
 		current_points[i].y = points[i].y;
 	}
 	
+	int fps_seconds = 5;
 	double now = glfwGetTime();
+	double duration = 0;
 	
 	appctx.geom.finalizeDrawData();
 	
 	appctx.view.update(win);
 	
 	bool never_drawn = true;
+	unsigned int frames = 0;
 
 	// loop until GLFW says it's time to quit
 	while (!glfwWindowShouldClose(win)) {
@@ -307,6 +310,13 @@ int draw_data(FILE *fp, bool from_stdin){
 			xform = xform * Xform::translate( m );
 		}
 		
+		duration = glfwGetTime() - now;
+		if(duration > fps_seconds){
+			fprintf(stderr,"FPS:\t%lf\n", frames / duration);
+			frames = 0;
+			now = glfwGetTime();
+		}
+		
 		appctx.redraw |= appctx.input.keyUpdate(appctx.geom, *win);
 		
 		// do we need to redraw?
@@ -319,7 +329,7 @@ int draw_data(FILE *fp, bool from_stdin){
 			appctx.geom.draw();
 			glfwSwapBuffers(win);
 		}
-
+		frames++;
 		glfwPollEvents();		// wait for user input
 	}
 
