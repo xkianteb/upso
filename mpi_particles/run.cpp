@@ -159,6 +159,9 @@ int main( int argc, char **argv ){
 
         if(rank == 0){
 			save( fsave, num_particles, particles );
+			
+			// sleep for a few milliseconds
+			//std::this_thread::sleep_for(std::chrono::nanoseconds(20000000));
 		}
 		
         
