@@ -22,7 +22,9 @@ The application attempts to merge MPI and OpenGL so as to do a live visualizatio
 # Requirements:
 
 GLFW : brew install glew
+
 GLEW : brew install glfw3
+
 MPI  : brew install open-mpi
 
 # Running:
