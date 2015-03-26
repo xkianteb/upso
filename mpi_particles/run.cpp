@@ -19,10 +19,75 @@ void usage(){
 	printf( "-o <filename> : specify the output file name for logging instead of drawing 3d (can be \"stdout\" for stdout)\n" );
 	printf( "-i <filename> : Load points from this file instead of generating flow (can be \"stdin\" for stdin) (overrides all other settings)\n");
 	printf( "-t <int>      : set the number of timesteps to calculate, default infinite, but %u with -o present\n", NSTEPS );
+	printf( "-c <filename> : Use map config for simulator\n");
 	
 	printf("\n\nEither -o or -i must be set.\n");
 	
 }
+
+struct map{
+	unsigned int height;
+	unsigned int width;
+	unsigned short *rows;
+};
+
+void read_map(FILE *fp, struct map *map_cfg){
+	char * line = NULL;
+    size_t len = 0;
+    ssize_t read;
+    
+    short temp_str_len = 50;
+    char first_term[temp_str_len];
+	char first_letter[temp_str_len];
+	memset(&first_letter, 0, temp_str_len);
+    
+    if(fp == NULL){
+        fprintf(stderr, "%s Error reading file.\n", MPI_PREPEND);
+        exit(1);
+    }
+	
+	map_cfg->height = 0;
+	map_cfg->width = 0;
+	map_cfg->rows = NULL;
+	unsigned int cells_read = 0;
+	char cell;
+
+	while((read = getline(&line, &len, fp)) != -1){
+        first_term[0] = 0;
+		first_letter[0] = 0;
+		
+        sscanf(line, "%s", first_term);
+		
+		sscanf(line, "%c", first_letter);
+		
+        if(str_equals("h",first_letter)){
+            sscanf(line, "h %u\n", &map_cfg->height);
+			fprintf(stderr,"%s map height: %u\n",MPI_PREPEND, map_cfg->height);
+			
+		}else if(str_equals("w",first_letter)){
+            sscanf(line, "w %u\n", &map_cfg->width);
+			fprintf(stderr,"%s map width: %u\n",MPI_PREPEND, map_cfg->width);
+			
+		}else{
+			
+			for(int i=0; i < map_cfg->width; i++){
+				sscanf(&line[i], "%c", &cell);
+				map_cfg->rows[cells_read] = cell - '0';
+				cells_read++;
+			}
+			
+		}
+
+		if(map_cfg->height > 0 && map_cfg->width > 0){
+			map_cfg->rows = (unsigned short *) malloc (map_cfg->height * map_cfg->width * sizeof(unsigned short));
+			if(!map_cfg->rows){
+				fprintf(stderr, "%s Couldn't malloc for map config\n", MPI_PREPEND);
+				exit(1);
+			}
+		}
+	}
+}
+
 
 int main( int argc, char **argv ){
 
@@ -84,6 +149,16 @@ int main( int argc, char **argv ){
 	}
     particle_t *particles = (particle_t*) malloc( num_particles * sizeof(particle_t) );
 	
+	char *map_cfg_file = NULL;
+	if(find_option(argc, argv, "-c") >= 0){
+		map_cfg_file = read_string( argc, argv, "-c", NULL );
+	}
+	
+	struct map map_cfg;
+	if(rank == 0 && map_cfg_file){
+		FILE *fp = fopen(map_cfg_file, "r");
+		read_map(fp, &map_cfg);
+	}
 	
     //
     //  allocate generic resources

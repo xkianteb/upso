@@ -8,6 +8,7 @@
 
 /* Begin PBXFileReference section */
 		694C1BF21AC44C8300ED66C5 /* README.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; name = README.md; path = ../README.md; sourceTree = "<group>"; };
+		694C1BF31AC48E8200ED66C5 /* map.cfg */ = {isa = PBXFileReference; lastKnownFileType = text; path = map.cfg; sourceTree = "<group>"; };
 		69FAB38F1AC1CAD100302F42 /* common.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = common.cpp; sourceTree = "<group>"; };
 		69FAB3901AC1CAD200302F42 /* common.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = common.h; sourceTree = "<group>"; };
 		69FAB3941AC1FABD00302F42 /* Cylinder.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = Cylinder.cpp; sourceTree = "<group>"; };
@@ -53,6 +54,7 @@
 				69FAB3B51AC1FD4000302F42 /* Makefile */,
 				69FAB3BB1AC2572300302F42 /* run.h */,
 				69FAB3BA1AC2571B00302F42 /* run.cpp */,
+				694C1BF31AC48E8200ED66C5 /* map.cfg */,
 				694C1BF21AC44C8300ED66C5 /* README.md */,
 				69FAB38F1AC1CAD100302F42 /* common.cpp */,
 				69FAB3941AC1FABD00302F42 /* Cylinder.cpp */,
