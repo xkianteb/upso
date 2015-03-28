@@ -40,6 +40,21 @@ Visualize:
 Combined:
 mpirun -np 2 ./run -p 10 -o stdout | ./run -i stdin
 
+With a map:
+mpirun -np 2 ./run -p 10 -o stdout -c map_box.cfg | ./run -i stdin
+
+Available maps:
+
+map.cfg : standard square
+
+map_L.cfg : L-shape
+
+map_E.cfg : E-shape
+
+map_box : perimeter box shape, with middle cut out.
+
+Currently the visualization portion works best on maps ~15x15, else some scaling is necessary to make it draw nicely inside the window.
+
 # To do:
 
 Clean up the Makefile. It is a bit ugly and brute forced right now.
