@@ -51,7 +51,7 @@ void move( particle_t &p, struct map *map_cfg );
 //  I/O routines
 //
 FILE *open_save( char *filename, int n );
-void save( FILE *f, int n, particle_t *p );
+void save( FILE *f, int n, particle_t *p, struct map *map_cfg );
 
 //
 //  argument processing routines

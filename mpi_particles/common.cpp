@@ -246,13 +246,12 @@ void move( particle_t &p, struct map *map_cfg ){
 //
 //  I/O routines
 //
-void save( FILE *f, int n, particle_t *p )
-{
+void save( FILE *f, int n, particle_t *p, struct map *map_cfg ){
 
     static bool first = true;
     if( first )
     {
-        fprintf( f, "n %d\nr %lf\ns %lf\n", n, cutoff, size );
+        fprintf( f, "n %d\nr %lf\ns %lf\na %u\n", n, cutoff, size, max(map_cfg->height, map_cfg->width) );
         first = false;
     }
 	for( int i = 0; i < n; i++ ){

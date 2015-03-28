@@ -243,7 +243,7 @@ int main( int argc, char **argv ){
         MPI_Allgatherv( local, nlocal, PARTICLE, particles, partition_sizes, partition_offsets, PARTICLE, MPI_COMM_WORLD );
 
         if(rank == 0){
-			save( fsave, num_particles, particles );
+			save( fsave, num_particles, particles, &map_cfg );
 			
 			// sleep for a few milliseconds
 			//std::this_thread::sleep_for(std::chrono::nanoseconds(20000000));
