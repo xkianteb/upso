@@ -59,5 +59,6 @@ void save( FILE *f, int n, particle_t *p, struct map *map_cfg );
 int find_option( int argc, char **argv, const char *option );
 int read_int( int argc, char **argv, const char *option, int default_value );
 char *read_string( int argc, char **argv, const char *option, char *default_value );
+double read_double( int argc, char **argv, const char *option, int default_value );
 
 #endif

@@ -279,6 +279,14 @@ int read_int( int argc, char **argv, const char *option, int default_value )
     return default_value;
 }
 
+double read_double( int argc, char **argv, const char *option, int default_value ){
+    int iplace = find_option( argc, argv, option );
+    if( iplace >= 0 && iplace < argc-1 )
+        return atof( argv[iplace+1] );
+    return default_value;
+}
+
+
 char *read_string( int argc, char **argv, const char *option, char *default_value )
 {
     int iplace = find_option( argc, argv, option );
