@@ -54,12 +54,12 @@ void set_size( int n, struct map *map_cfg){
 	}
 }
 
+
 bool is_valid_location(double x, double y, struct map *map_cfg){
 	unsigned int highest_dim = max(map_cfg->height, map_cfg->width);
 	
 	unsigned int col = (int) floor(x * highest_dim);
 	unsigned int row = (int) floor(y * highest_dim);
-	
 	
 	unsigned int cell = map_cfg->width * row + col;
 	//printf("%lf %lf\t\t%u %u\t\t%u\t\t%u %u\n", x,y,col,row, cell, map_cfg->width,map_cfg->height);fflush(stdout);
@@ -68,15 +68,9 @@ bool is_valid_location(double x, double y, struct map *map_cfg){
 		return false;
 	}
 	
-	
-	// returns true if cell has 1
-	/*
-	if(map_cfg->data[cell] == 1){
-		fprintf(stderr,"%s particle at col,row (%u, %u)\n",MPI_PREPEND, col,row);
-	}
-	*/
 	return map_cfg->data[cell] == 1;
 }
+
 
 //
 //  Initialize the particle positions and velocities
@@ -139,15 +133,80 @@ void apply_force( particle_t &particle, particle_t &neighbor )
     particle.ay += coef * dy;
 }
 
+
+// returns:
+// true: wall between x1 and x2
+// *wall_x: will have the x coord of the wall
+bool wall_between_x(double new_x, double orig_x, double orig_y, double *wall_x, struct map *map_cfg){
+	unsigned int highest_dim = max(map_cfg->height, map_cfg->width);
+	unsigned int new_col = (int) floor(new_x * highest_dim);
+	unsigned int old_col = (int) floor(orig_x * highest_dim);
+	unsigned int row = (int) floor(orig_y * highest_dim);
+	
+	unsigned int cell = map_cfg->width * row + new_col;
+	unsigned int cell2 = map_cfg->width * row + old_col;
+	
+	
+	// Both cells shouldn't be zero, else a particle is in a bad place
+	//fprintf(stderr, "%s particle at %lf %lf, new_x: %lf\n", MPI_PREPEND, orig_x, orig_y ,new_x);fflush(stderr);
+	//fprintf(stderr, "%u %u %u\t\t%u %u\t\tcell values: %u %u\t%u %u\n", old_col,new_col, row, cell, cell2,map_cfg->data[cell] ,map_cfg->data[cell2], map_cfg->width,map_cfg->height);
+	//fflush(stderr);
+	assert(map_cfg->data[cell] != 0 || map_cfg->data[cell2] != 0);
+	
+	//fprintf(stderr,"\tpassed\n");
+	// return false if both are one, so no wall, walkable.
+	if(map_cfg->data[cell] == 1 && map_cfg->data[cell2] == 1){
+		//fprintf(stderr,"x: (%lf, %lf) -> %lf, both are 1\n", orig_x, orig_y, new_x);
+		return false;
+	}
+	
+	// there is a wall present
+	(*wall_x) = ((double) (new_col > old_col ? new_col : old_col)) / highest_dim;
+	
+	//fprintf(stderr,"x: (%lf, %lf) -> %lf, wall at %lf\n", orig_x, orig_y, new_x, (*wall_x));
+	return true;
+	
+}
+
+bool wall_between_y(double new_y, double orig_y, double orig_x, double *wall_y, struct map *map_cfg){
+	unsigned int highest_dim = max(map_cfg->height, map_cfg->width);
+	unsigned int new_row = (int) floor(new_y * highest_dim);
+	unsigned int old_row = (int) floor(orig_y * highest_dim);
+	unsigned int col = (int) floor(orig_x * highest_dim);
+	
+	unsigned int cell = map_cfg->width * old_row + col;
+	unsigned int cell2 = map_cfg->width * new_row + col;
+	
+	
+	// Both cells shouldn't be zero, else a particle is in a bad place
+	assert(map_cfg->data[cell] != 0 || map_cfg->data[cell2] != 0);
+	
+	// return false if both are one, so no wall, walkable.
+	if(map_cfg->data[cell] == 1 && map_cfg->data[cell2] == 1){
+		//fprintf(stderr,"y: (%lf, %lf) -> %lf, both are 1\n", orig_x, orig_y, new_y);
+		return false;
+	}
+	
+	// there is a wall present
+	(*wall_y) = ((double) (new_row > old_row ? new_row : old_row)) / highest_dim;
+	
+	//fprintf(stderr,"y: (%lf, %lf) -> %lf, wall at %lf\n", orig_x, orig_y, new_y, (*wall_y));
+	return true;
+}
+
 //
 //  integrate the ODE
 //
-void move( particle_t &p )
-{
+void move( particle_t &p, struct map *map_cfg ){
     //
     //  slightly simplified Velocity Verlet integration
     //  conserves energy better than explicit Euler method
     //
+	double orig_x = p.x;
+	double orig_y = p.y;
+	double orig_vx = p.vx;
+	double orig_vy = p.vy;
+	
     p.vx += p.ax * dt;
     p.vy += p.ay * dt;
     p.x  += p.vx * dt;
@@ -156,16 +215,32 @@ void move( particle_t &p )
     //
     //  bounce from walls
     //
-    while( p.x < 0 || p.x > size )
-    {
-        p.x  = p.x < 0 ? -p.x : 2*size-p.x;
-        p.vx = -p.vx;
-    }
-    while( p.y < 0 || p.y > size )
-    {
-        p.y  = p.y < 0 ? -p.y : 2*size-p.y;
-        p.vy = -p.vy;
-    }
+	double wall_x;
+	double wall_y;
+	
+	if(wall_between_x(p.x, orig_x, orig_y, &wall_x, map_cfg)){
+		//while( p.x < 0 || p.x > wall_x ){
+		//fprintf(stderr,"** Calculating x wall: %lf %lf\t\twall: %lf\t\t(%u || %u)\n",orig_x, p.x, wall_x, ((p.x > wall_x && wall_x > orig_x ) ? 1 : 0), ((orig_x > wall_x && wall_x > p.x) ? 1 : 0) );
+		while( (p.x > wall_x && wall_x > orig_x ) || (orig_x > wall_x && wall_x > p.x)){
+
+			//fprintf(stderr,"** Calculating x wall: %lf %lf\t\twall: %lf\t\t(%u || %u)\n",orig_x, p.x, wall_x, ((p.x > wall_x && wall_x > orig_x ) ? 1 : 0), ((orig_x > wall_x && wall_x > p.x) ? 1 : 0) );
+			// p.x  = p.x < wall_x ? orig_x - p.vx*dt : 2*size-p.x;
+			p.x  = 2*wall_x - p.x; //p.x < wall_x ? orig_x - p.vx*dt : 2*wall_x-p.x;
+			p.vx = -p.vx;
+		}
+	}
+	
+	if(wall_between_y(p.y, orig_y, orig_x, &wall_y, map_cfg)){
+		//while( p.y < 0 || p.y > size ){
+		//fprintf(stderr,"** Calculating y wall: %lf %lf\t\twall: %lf\t\t(%u || %u)\n",orig_y, p.y, wall_y, ((p.y > wall_y && wall_y > orig_y )  ? 1 : 0), ((orig_y > wall_y && wall_y > p.y) ? 1 : 0));
+		
+		while( (p.y > wall_y && wall_y > orig_y ) || (orig_y > wall_y && wall_y > p.y)){
+		//fprintf(stderr,"** Calculating y wall: %lf %lf\t\twall: %lf\t\t(%u || %u)\n",orig_y, p.y, wall_y, ((p.y > wall_y && wall_y > orig_y )  ? 1 : 0), ((orig_y > wall_y && wall_y > p.y) ? 1 : 0));
+			p.y  = 2*wall_y - p.y; //p.y < wall_y ? wall_y + (wall_y - p.y) : 2*wall_y-p.y;
+			p.vy = -p.vy;
+		}
+	}
+	
 }
 
 //

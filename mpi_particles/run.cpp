@@ -249,7 +249,7 @@ int main( int argc, char **argv ){
 		//  move particles
 		//
 		for( int i = 0; i < nlocal; i++ ){
-			move( local[i] );
+			move( local[i], &map_cfg );
 		}
     }
     simulation_time = read_timer( ) - simulation_time;
