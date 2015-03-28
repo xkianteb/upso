@@ -51,7 +51,9 @@ map_L.cfg : L-shape
 
 map_E.cfg : E-shape
 
-map_box : perimeter box shape, with middle cut out.
+map_box.cfg : perimeter box shape, with middle cut out.
+
+map_disjoint.cfg : Different shapes, particles can be separated just fine.
 
 Currently the visualization portion works best on maps ~15x15, else some scaling is necessary to make it draw nicely inside the window.
 
