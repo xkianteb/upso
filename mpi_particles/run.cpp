@@ -150,11 +150,26 @@ int main( int argc, char **argv ){
 		map_cfg_file = read_string( argc, argv, "-c", NULL );
 	}
 	
+	
+	// Read map config by rank 0, process it, and broadcast it out
 	struct map map_cfg = {0,0,0};
 	if(rank == 0 && map_cfg_file){
 		FILE *fp = fopen(map_cfg_file, "r");
 		read_map(fp, &map_cfg);
 	}
+	
+	MPI_Bcast(&map_cfg.height, 1, MPI_UNSIGNED, 0, MPI_COMM_WORLD );
+	MPI_Bcast(&map_cfg.width, 1, MPI_UNSIGNED, 0, MPI_COMM_WORLD );
+	
+	if(rank > 0 && map_cfg.height > 0 && map_cfg.width > 0){
+		map_cfg.data = (unsigned short *) malloc (map_cfg.height * map_cfg.width * sizeof(unsigned short));
+	}
+	
+	if(map_cfg.height > 0 && map_cfg.width > 0){
+		MPI_Bcast(map_cfg.data, map_cfg.height * map_cfg.width, MPI_UNSIGNED_SHORT, 0, MPI_COMM_WORLD);
+	}
+	
+	
 	
     //
     //  allocate generic resources
@@ -261,6 +276,10 @@ int main( int argc, char **argv ){
     //
     //  release resources
     //
+	
+	if(map_cfg.data){
+		free(map_cfg.data);
+	}
 	
     free( partition_offsets );
     free( partition_sizes );
