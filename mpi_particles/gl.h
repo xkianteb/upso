@@ -24,7 +24,7 @@ struct AppContext {
 	Input input;				  // user interface data
 	bool redraw;				  // true if we need to redraw
 
-	AppContext(GLFWwindow *win) : view(win) {
+	AppContext(GLFWwindow *win, double distance) : view(win, distance) {
 		redraw = true;
 		
 		// store context pointer to access application data from callbacks

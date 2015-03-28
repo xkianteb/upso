@@ -123,7 +123,7 @@ void get_space_for_items(unsigned int *space_for_items, int *num_items, void **i
     }
 }
 
-int read_input(bool verbose, FILE *fp, Vec<3> **points, int *num_particles, double *radius, double *size){
+int read_input(bool verbose, FILE *fp, Vec<3> **points, int *num_particles, double *radius, double *size, unsigned int *actual_size){
     char * line = NULL;
     size_t len = 0;
     ssize_t read;
@@ -164,7 +164,10 @@ int read_input(bool verbose, FILE *fp, Vec<3> **points, int *num_particles, doub
 		}else if(str_equals("s",first_letter)){
 			sscanf(line, "s %lf\n", size);
 			fprintf(stderr,"%s size: %lf\n", VIZ_PREPEND, *size);
-	
+		}else if(str_equals("a",first_letter)){
+			sscanf(line, "a %u\n", actual_size);
+			fprintf(stderr,"%s actual_size: %u\n", VIZ_PREPEND, *actual_size);
+		
 		}else if(str_equals("p",first_letter)){
 			get_space_for_items(&space_for_points, &num_points, (void **) points, sizeof(Vec<3>), batch_malloc_size, verbose);
 			sscanf(line, "p %lf %lf\n", &x, &y );
@@ -194,31 +197,29 @@ bool poll_input(GLFWwindow *win, AppContext *appctx){
 	return false;
 }
 
-void scale_points(Vec<3> *points, int num_particles, double *scale, double *radius, double size, bool first_run){
+void scale_points(Vec<3> *points, int num_particles, double *scale, double *radius, double size, unsigned int actual_size, bool first_run){
 	
-	// do some processing on the particles
-	//printf("x range: (%lf,%lf), y range: (%lf,%lf)\n", min_x, max_x, min_y, max_y);
-	double x_width = size * 0.5;
-	double y_width = size * 0.5;
-	int i = 0;
+	int i;
+	
+	// center around origin
+	for(i = 0; i < num_particles; i++){
+		points[i].x -= 0.5 * size;
+		points[i].y -= 0.5 * size;
+	}
 	
 	if(first_run){
-		double desired_height = 300.0;
-		(*scale) = desired_height / x_width;
-		//printf("size: %lf, scale: %lf\n", size, *scale);
 		// This math is kinda hacked, but it gets good results
+		double desired_height = 400;
+		(*scale) = desired_height; // / actual_size;
 		(*radius) = 0.5 * (*radius) * (*scale);
 		//printf("new radius: %lf\n",(*radius));
+		printf("size: %lf, scale: %lf, actual: %u, radius: %lf\n", size, *scale, actual_size, *radius);
 	}
 	
 	for(i = 0; i < num_particles; i++){
-		points[i].x -= x_width;
-		points[i].y -= y_width;
 		points[i].x *= (*scale);
 		points[i].y *= (*scale);
 	}
-	
-	//printf("new min max: (%lf, %lf) (%lf, %lf)\n", min_x, min_y, max_x, max_y);
 	
 }
 
@@ -227,28 +228,31 @@ int draw_data(FILE *fp, bool from_stdin){
 	GLFWwindow *win = initGLFW();
 	assert(win);				// window must exist
 	
-	AppContext appctx(win);
-	Textures tex;
-	
 	
 	Vec<3> *points = 0;
 	double radius = 0.01;
 	int num_particles = 0;
 	int points_read = 0;
 	double size = 0;
-	points_read = read_input(false, fp, &points, &num_particles, &radius, &size);
+	unsigned int actual_size = 0;
+	points_read = read_input(false, fp, &points, &num_particles, &radius, &size, &actual_size);
 	if(points_read < num_particles){
 		fprintf(stderr,"%s Out of points\n", VIZ_PREPEND);
 		return 0;
 	}
 
 	double scale = 1;
-	scale_points(points, num_particles, &scale, &radius, size, true);
+	scale_points(points, num_particles, &scale, &radius, size, actual_size, true);
 	
 	Vec<3> current_points[num_particles];
 	unsigned int sphere_draw_ids[num_particles];
 	unsigned int i = 0;
 	
+	
+	double distance = 500;
+	
+	AppContext appctx(win, distance);
+	Textures tex;
 	
 	for(i = 0; i < num_particles; i++){
 		Sphere sph1(appctx.geom, tex, radius, Vec3(points[i].x, points[i].y, 1) , 1);
@@ -273,12 +277,12 @@ int draw_data(FILE *fp, bool from_stdin){
 		// check for updates while a key is pressed
 	
 		// get new points to draw
-		points_read = read_input(false, fp, &points, &num_particles, &radius, &size);
+		points_read = read_input(false, fp, &points, &num_particles, &radius, &size, &actual_size);
 		if(points_read < num_particles){
 			fprintf(stderr, "%s Out of points\n", VIZ_PREPEND);
 			break;
 		}
-		scale_points(points, num_particles, &scale, &radius, size, false);
+		scale_points(points, num_particles, &scale, &radius, size, actual_size, false);
 		
 		appctx.redraw = true;
 		for(i = 0; i < num_particles; i++){
