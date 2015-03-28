@@ -19,6 +19,7 @@ void usage(){
 	printf( "-i <filename> : Load points from this file instead of generating flow (can be \"stdin\" for stdin) (overrides all other settings)\n");
 	printf( "-t <int>      : set the number of timesteps to calculate, default infinite, but %u with -o present\n", NSTEPS );
 	printf( "-c <filename> : Use map config for simulator, defaults to map.cfg (plain old square).\n");
+	printf( "-s <int>      : Frame skip, skips <int> frames every draw. Will speed up simulation visualization.\n");
 	
 	printf("\n\nEither -o or -i must be set.\n");
 	
@@ -107,13 +108,20 @@ int main( int argc, char **argv ){
 	bool read_from_stdin = input_file && str_equals(input_file, "stdin");
 	
 	
+	
 	int num_particles = 2;
 	
 	if(input_file){
 		
 		if(rank == 0){
+		
+			unsigned int frame_skip = read_int( argc, argv, "-s", 0 );
+			if(frame_skip){
+				fprintf(stderr, "%s Skipping %u frames\n", VIZ_PREPEND, frame_skip);
+			}
+			
 			FILE *fp = read_from_stdin ? stdin : fopen(input_file, "r");
-			draw_data(fp, read_from_stdin);
+			draw_data(fp, read_from_stdin, frame_skip);
 			if(!read_from_stdin){
 				fclose(fp);
 			}

@@ -223,7 +223,7 @@ void scale_points(Vec<3> *points, int num_particles, double *scale, double *radi
 	
 }
 
-int draw_data(FILE *fp, bool from_stdin){
+int draw_data(FILE *fp, bool from_stdin, unsigned int frame_skip){
 
 	GLFWwindow *win = initGLFW();
 	assert(win);				// window must exist
@@ -271,9 +271,11 @@ int draw_data(FILE *fp, bool from_stdin){
 	
 	bool never_drawn = true;
 	unsigned int frames = 0;
+	unsigned int since_last_draw = 0;
 
 	// loop until GLFW says it's time to quit
 	while (!glfwWindowShouldClose(win)) {
+		since_last_draw++;
 		// check for updates while a key is pressed
 	
 		// get new points to draw
@@ -282,18 +284,22 @@ int draw_data(FILE *fp, bool from_stdin){
 			fprintf(stderr, "%s Out of points\n", VIZ_PREPEND);
 			break;
 		}
-		scale_points(points, num_particles, &scale, &radius, size, actual_size, false);
 		
-		appctx.redraw = true;
-		for(i = 0; i < num_particles; i++){
+		if(!frame_skip || since_last_draw >= frame_skip){
 		
-			Xform &xform = appctx.geom.getModelUniforms( sphere_draw_ids[i] ).modelMats;
-			Vec<3> m = Vec3(points[i].x, points[i].y, 0);
-			m.xy = m.xy - current_points[i].xy;
-			current_points[i].xy = points[i].xy;
-			xform = xform * Xform::translate( m );
+			scale_points(points, num_particles, &scale, &radius, size, actual_size, false);
+			
+			appctx.redraw = true;
+			for(i = 0; i < num_particles; i++){
+			
+				Xform &xform = appctx.geom.getModelUniforms( sphere_draw_ids[i] ).modelMats;
+				Vec<3> m = Vec3(points[i].x, points[i].y, 0);
+				m.xy = m.xy - current_points[i].xy;
+				current_points[i].xy = points[i].xy;
+				xform = xform * Xform::translate( m );
+			}
 		}
-		
+			
 		duration = glfwGetTime() - now;
 		if(duration > fps_seconds){
 			fprintf(stderr,"%s FPS:\t%lf\n", VIZ_PREPEND, frames / duration);
@@ -312,8 +318,9 @@ int draw_data(FILE *fp, bool from_stdin){
 			glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 			appctx.geom.draw();
 			glfwSwapBuffers(win);
+			since_last_draw = 0;
+			frames++;
 		}
-		frames++;
 		glfwPollEvents();		// wait for user input
 	}
 
