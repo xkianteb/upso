@@ -23,7 +23,7 @@ public:
 
 // public methods
 public:
-	View(GLFWwindow *win);
+	View(GLFWwindow *win, double distance);
 	~View();
 
 	void update(GLFWwindow *win);	// update after data change

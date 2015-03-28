@@ -14,9 +14,9 @@
 #endif
 
 // create and initialize view
-View::View(GLFWwindow *win) {
+View::View(GLFWwindow *win, double distance) {
 	// default view in spherical coordinates (theta, phi, distance)
-	viewSph = Vec3(0, 0, 500);
+	viewSph = Vec3(0, 0, distance);
 
 	// create uniform buffer objects
 	glGenBuffers(1, &frameUniformBufferID);
