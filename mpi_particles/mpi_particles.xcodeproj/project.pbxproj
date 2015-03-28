@@ -11,6 +11,7 @@
 		694C1BF31AC48E8200ED66C5 /* map.cfg */ = {isa = PBXFileReference; lastKnownFileType = text; path = map.cfg; sourceTree = "<group>"; };
 		694C1BF41AC6E30200ED66C5 /* map_L.cfg */ = {isa = PBXFileReference; lastKnownFileType = text; path = map_L.cfg; sourceTree = "<group>"; };
 		694C1BF51AC6E58D00ED66C5 /* map_E.cfg */ = {isa = PBXFileReference; lastKnownFileType = text; path = map_E.cfg; sourceTree = "<group>"; };
+		694C1BF61AC7207200ED66C5 /* map_box.cfg */ = {isa = PBXFileReference; lastKnownFileType = text; path = map_box.cfg; sourceTree = "<group>"; };
 		69FAB38F1AC1CAD100302F42 /* common.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = common.cpp; sourceTree = "<group>"; };
 		69FAB3901AC1CAD200302F42 /* common.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = common.h; sourceTree = "<group>"; };
 		69FAB3941AC1FABD00302F42 /* Cylinder.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = Cylinder.cpp; sourceTree = "<group>"; };
@@ -59,6 +60,7 @@
 				694C1BF31AC48E8200ED66C5 /* map.cfg */,
 				694C1BF41AC6E30200ED66C5 /* map_L.cfg */,
 				694C1BF51AC6E58D00ED66C5 /* map_E.cfg */,
+				694C1BF61AC7207200ED66C5 /* map_box.cfg */,
 				694C1BF21AC44C8300ED66C5 /* README.md */,
 				69FAB38F1AC1CAD100302F42 /* common.cpp */,
 				69FAB3941AC1FABD00302F42 /* Cylinder.cpp */,
