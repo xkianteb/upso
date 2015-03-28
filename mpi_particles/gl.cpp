@@ -149,11 +149,11 @@ int read_input(bool verbose, FILE *fp, Vec<3> **points, int *num_particles, doub
         first_term[0] = 0;
 		first_letter[0] = 0;
 		
-        sscanf(line, "%s", first_term);
+		sscanf(line, "%s", first_term);
 		
 		sscanf(line, "%c", first_letter);
 		
-        if(str_equals("n",first_letter)){
+		if(str_equals("n",first_letter)){
             sscanf(line, "n %u\n", num_particles);
 			fprintf(stderr,"%s got num particles: %u\n",VIZ_PREPEND, *num_particles);
 			batch_malloc_size = *num_particles;
@@ -165,9 +165,9 @@ int read_input(bool verbose, FILE *fp, Vec<3> **points, int *num_particles, doub
 			sscanf(line, "s %lf\n", size);
 			fprintf(stderr,"%s size: %lf\n", VIZ_PREPEND, *size);
 	
-		}else{
+		}else if(str_equals("p",first_letter)){
 			get_space_for_items(&space_for_points, &num_points, (void **) points, sizeof(Vec<3>), batch_malloc_size, verbose);
-			sscanf(line, "%lf %lf\n", &x, &y );
+			sscanf(line, "p %lf %lf\n", &x, &y );
 			(*points)[num_points].x = x;
 			(*points)[num_points].y = y;
 			num_points++;
@@ -175,6 +175,8 @@ int read_input(bool verbose, FILE *fp, Vec<3> **points, int *num_particles, doub
 			if(num_points == *num_particles){
 				break;
 			}
+		}else{
+			fprintf(stderr, "%s got unhandled line: %s\n", VIZ_PREPEND, line);
 		}
 
 	}

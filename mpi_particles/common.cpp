@@ -11,6 +11,7 @@
 double size;
 double height;
 double width;
+double max_velocity;
 
 
 //
@@ -20,7 +21,7 @@ double width;
 #define mass    0.01
 #define cutoff  0.01
 #define min_r   (cutoff/100)
-#define dt      0.0005
+#define dt      0.0005 // 0.0005
 
 //
 //  timer
@@ -52,6 +53,7 @@ void set_size( int n, struct map *map_cfg){
 		height = 1.0;
 		width = 1.0;
 	}
+	max_velocity = 2;//0.9 / max(map_cfg->height, map_cfg->width);
 }
 
 
@@ -75,8 +77,8 @@ bool is_valid_location(double x, double y, struct map *map_cfg){
 //
 //  Initialize the particle positions and velocities
 //
-void init_particles( int n, particle_t *p, struct map *map_cfg )
-{
+void init_particles( int n, particle_t *p, struct map *map_cfg ){
+	unsigned int highest_dim = max(map_cfg->height, map_cfg->width);
     srand48( time( NULL ) );
         
     int sx = (int)ceil(sqrt((double)n));
@@ -85,9 +87,8 @@ void init_particles( int n, particle_t *p, struct map *map_cfg )
     int *shuffle = (int*)malloc( n * sizeof(int) );
     for( int i = 0; i < n; i++ )
         shuffle[i] = i;
-    
-    for( int i = 0; i < n; i++ ) 
-    {
+	
+	for( int i = 0; i < n; i++ ){
         //
         //  make sure particles are not spatially sorted
         //
@@ -101,12 +102,13 @@ void init_particles( int n, particle_t *p, struct map *map_cfg )
 			p[i].y = drand48() * size; //size*(1.+(k/sx))/(1+sy);
 		}while(!is_valid_location(p[i].x, p[i].y, map_cfg));
 		
-		fprintf(stderr, "%s particle %d at %lf %lf\n", MPI_PREPEND, i, p[i].x, p[i].y );fflush(stderr);
         //
         //  assign random velocities within a bound
         //
-        p[i].vx = drand48()*2-1;
-        p[i].vy = drand48()*2-1;
+        p[i].vx = drand48() * max_velocity - max_velocity;
+        p[i].vy = drand48() * max_velocity - max_velocity;
+		
+		fprintf(stderr, "%s particle %d at %lf %lf, vel (%lf,%lf)\n", MPI_PREPEND, i, p[i].x, p[i].y, p[i].vx, p[i].vy );fflush(stderr);
     }
     free( shuffle );
 }
@@ -133,29 +135,46 @@ void apply_force( particle_t &particle, particle_t &neighbor )
     particle.ay += coef * dy;
 }
 
+unsigned int cell_for_pos(double x, double y, struct map *map_cfg){
+	unsigned int highest_dim = max(map_cfg->height, map_cfg->width);
+	unsigned int col = (unsigned int) floor(x * highest_dim);
+	unsigned int row = (unsigned int) floor(y * highest_dim);
+	
+	unsigned int cell = map_cfg->width * row + col;
+	return cell;
+}
 
 // returns:
 // true: wall between x1 and x2
 // *wall_x: will have the x coord of the wall
 bool wall_between_x(double new_x, double orig_x, double orig_y, double *wall_x, struct map *map_cfg){
 	unsigned int highest_dim = max(map_cfg->height, map_cfg->width);
-	unsigned int new_col = (int) floor(new_x * highest_dim);
-	unsigned int old_col = (int) floor(orig_x * highest_dim);
+	unsigned int new_col = (unsigned int) floor(new_x * highest_dim);
+	unsigned int old_col = (unsigned int) floor(orig_x * highest_dim);
 	unsigned int row = (int) floor(orig_y * highest_dim);
 	
-	unsigned int cell = map_cfg->width * row + new_col;
-	unsigned int cell2 = map_cfg->width * row + old_col;
+	unsigned int new_cell = cell_for_pos(new_x, orig_y, map_cfg); //map_cfg->width * row + new_col;
+	unsigned int old_cell = cell_for_pos(orig_x, orig_y, map_cfg); //map_cfg->width * row + old_col;
 	
 	
-	// Both cells shouldn't be zero, else a particle is in a bad place
+
 	//fprintf(stderr, "%s particle at %lf %lf, new_x: %lf\n", MPI_PREPEND, orig_x, orig_y ,new_x);fflush(stderr);
 	//fprintf(stderr, "%u %u %u\t\t%u %u\t\tcell values: %u %u\t%u %u\n", old_col,new_col, row, cell, cell2,map_cfg->data[cell] ,map_cfg->data[cell2], map_cfg->width,map_cfg->height);
 	//fflush(stderr);
-	assert(map_cfg->data[cell] != 0 || map_cfg->data[cell2] != 0);
 	
-	//fprintf(stderr,"\tpassed\n");
+	
+	fprintf(stderr,"x: old cell: %u\tnew cell: %u, (%lf,%lf) (%u,%u), vals (%u,%u)\n",old_cell,new_cell, orig_x,orig_y,new_col, row, map_cfg->data[old_cell]);fflush(stderr);
+	
+	// Old cell should only be one
+	assert(map_cfg->data[old_cell] == 1);
+	// new cell should be valid
+	assert(map_cfg->height > row && map_cfg->width > new_col && new_cell >= 0);
+	
+	fprintf(stderr,"%u)\n", map_cfg->data[new_cell]);fflush(stderr);
+	
+	fprintf(stderr,"\tpassed\n");
 	// return false if both are one, so no wall, walkable.
-	if(map_cfg->data[cell] == 1 && map_cfg->data[cell2] == 1){
+	if(map_cfg->data[new_cell] == 1){
 		//fprintf(stderr,"x: (%lf, %lf) -> %lf, both are 1\n", orig_x, orig_y, new_x);
 		return false;
 	}
@@ -170,19 +189,29 @@ bool wall_between_x(double new_x, double orig_x, double orig_y, double *wall_x, 
 
 bool wall_between_y(double new_y, double orig_y, double orig_x, double *wall_y, struct map *map_cfg){
 	unsigned int highest_dim = max(map_cfg->height, map_cfg->width);
-	unsigned int new_row = (int) floor(new_y * highest_dim);
-	unsigned int old_row = (int) floor(orig_y * highest_dim);
+	unsigned int new_row = (unsigned int) floor(new_y * highest_dim);
+	unsigned int old_row = (unsigned int) floor(orig_y * highest_dim);
 	unsigned int col = (int) floor(orig_x * highest_dim);
 	
-	unsigned int cell = map_cfg->width * old_row + col;
-	unsigned int cell2 = map_cfg->width * new_row + col;
+	unsigned int old_cell = cell_for_pos(orig_x, orig_y, map_cfg); // map_cfg->width * old_row + col;
+	unsigned int new_cell = cell_for_pos(orig_x, new_y, map_cfg); // map_cfg->width * new_row + col;
 	
 	
-	// Both cells shouldn't be zero, else a particle is in a bad place
-	assert(map_cfg->data[cell] != 0 || map_cfg->data[cell2] != 0);
+	
+	fprintf(stderr,"y: old cell: %u\tnew cell: %u, (%lf,%lf) (%u,%u), vals (%u\n",old_cell,new_cell, orig_x,orig_y, col, new_row, map_cfg->data[old_cell]);fflush(stderr);
+	
+	
+	// Old cell should only be one
+	assert(map_cfg->data[old_cell] == 1);
+	// new cell should be valid
+	assert(map_cfg->height > new_row && map_cfg->width > col && new_cell >= 0);
+	
+	fprintf(stderr, "%u)\n",map_cfg->data[new_cell]);fflush(stderr);
+	
+	fprintf(stderr,"\tpassed\n");
 	
 	// return false if both are one, so no wall, walkable.
-	if(map_cfg->data[cell] == 1 && map_cfg->data[cell2] == 1){
+	if(map_cfg->data[new_cell] == 1){
 		//fprintf(stderr,"y: (%lf, %lf) -> %lf, both are 1\n", orig_x, orig_y, new_y);
 		return false;
 	}
@@ -217,10 +246,12 @@ void move( particle_t &p, struct map *map_cfg ){
     //
 	double wall_x;
 	double wall_y;
-	
+	fprintf(stderr, "1\n");fflush(stderr);
 	if(wall_between_x(p.x, orig_x, orig_y, &wall_x, map_cfg)){
+	fprintf(stderr, "2\n");fflush(stderr);
 		//while( p.x < 0 || p.x > wall_x ){
 		//fprintf(stderr,"** Calculating x wall: %lf %lf\t\twall: %lf\t\t(%u || %u)\n",orig_x, p.x, wall_x, ((p.x > wall_x && wall_x > orig_x ) ? 1 : 0), ((orig_x > wall_x && wall_x > p.x) ? 1 : 0) );
+		fprintf(stderr,"\tMoving from (%lf,%lf), (%lf,%lf)\n", orig_x,orig_y, p.x,p.y);
 		while( (p.x > wall_x && wall_x > orig_x ) || (orig_x > wall_x && wall_x > p.x)){
 
 			//fprintf(stderr,"** Calculating x wall: %lf %lf\t\twall: %lf\t\t(%u || %u)\n",orig_x, p.x, wall_x, ((p.x > wall_x && wall_x > orig_x ) ? 1 : 0), ((orig_x > wall_x && wall_x > p.x) ? 1 : 0) );
@@ -228,19 +259,28 @@ void move( particle_t &p, struct map *map_cfg ){
 			p.x  = 2*wall_x - p.x; //p.x < wall_x ? orig_x - p.vx*dt : 2*wall_x-p.x;
 			p.vx = -p.vx;
 		}
+		fprintf(stderr, "\tMoved to (%lf,%lf) cell %u, val %u\n", p.x,p.y, cell_for_pos(p.x,p.y, map_cfg), map_cfg->data[cell_for_pos(p.x,p.y, map_cfg)] );
 	}
+	fprintf(stderr, "3\n");fflush(stderr);
 	
-	if(wall_between_y(p.y, orig_y, orig_x, &wall_y, map_cfg)){
+	if(wall_between_y(p.y, orig_y, p.x, &wall_y, map_cfg)){
+	fprintf(stderr, "4\n");fflush(stderr);
 		//while( p.y < 0 || p.y > size ){
 		//fprintf(stderr,"** Calculating y wall: %lf %lf\t\twall: %lf\t\t(%u || %u)\n",orig_y, p.y, wall_y, ((p.y > wall_y && wall_y > orig_y )  ? 1 : 0), ((orig_y > wall_y && wall_y > p.y) ? 1 : 0));
 		
+		fprintf(stderr,"\tMoving from (%lf,%lf)\n", orig_x,orig_y);
 		while( (p.y > wall_y && wall_y > orig_y ) || (orig_y > wall_y && wall_y > p.y)){
 		//fprintf(stderr,"** Calculating y wall: %lf %lf\t\twall: %lf\t\t(%u || %u)\n",orig_y, p.y, wall_y, ((p.y > wall_y && wall_y > orig_y )  ? 1 : 0), ((orig_y > wall_y && wall_y > p.y) ? 1 : 0));
 			p.y  = 2*wall_y - p.y; //p.y < wall_y ? wall_y + (wall_y - p.y) : 2*wall_y-p.y;
 			p.vy = -p.vy;
 		}
+		fprintf(stderr,"\tMoved to (%lf,%lf) cell %u, val %u\n", p.x,p.y, cell_for_pos(p.x,p.y, map_cfg), map_cfg->data[cell_for_pos(p.x,p.y, map_cfg)] );
 	}
+	fprintf(stderr, "5\n");fflush(stderr);
 	
+	unsigned int cell = cell_for_pos(p.x,p.y, map_cfg);
+	fprintf(stderr, "** Particle now in %u, %u\n", cell, map_cfg->data[cell]);
+	assert(map_cfg->data[ cell ] == 1);
 }
 
 //
@@ -256,7 +296,7 @@ void save( FILE *f, int n, particle_t *p )
         first = false;
     }
 	for( int i = 0; i < n; i++ ){
-        fprintf( f, "%g %g\n", p[i].x, p[i].y );fflush(f);
+        fprintf( f, "p %g %g\n", p[i].x, p[i].y );fflush(f);
 	}
 }
 
