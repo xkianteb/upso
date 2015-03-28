@@ -18,7 +18,7 @@ void usage(){
 	printf( "-o <filename> : specify the output file name for logging instead of drawing 3d (can be \"stdout\" for stdout)\n" );
 	printf( "-i <filename> : Load points from this file instead of generating flow (can be \"stdin\" for stdin) (overrides all other settings)\n");
 	printf( "-t <int>      : set the number of timesteps to calculate, default infinite, but %u with -o present\n", NSTEPS );
-	printf( "-c <filename> : Use map config for simulator\n");
+	printf( "-c <filename> : Use map config for simulator, defaults to map.cfg (plain old square).\n");
 	
 	printf("\n\nEither -o or -i must be set.\n");
 	
@@ -146,14 +146,11 @@ int main( int argc, char **argv ){
     particle_t *particles = (particle_t*) malloc( num_particles * sizeof(particle_t) );
 	
 	char *map_cfg_file = NULL;
-	if(find_option(argc, argv, "-c") >= 0){
-		map_cfg_file = read_string( argc, argv, "-c", NULL );
-	}
-	
+	map_cfg_file = read_string( argc, argv, "-c", "map.cfg" );
 	
 	// Read map config by rank 0, process it, and broadcast it out
 	struct map map_cfg = {0,0,0};
-	if(rank == 0 && map_cfg_file){
+	if(rank == 0){
 		FILE *fp = fopen(map_cfg_file, "r");
 		read_map(fp, &map_cfg);
 	}
