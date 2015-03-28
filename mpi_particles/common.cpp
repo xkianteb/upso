@@ -11,7 +11,6 @@
 double size;
 double height;
 double width;
-double max_velocity;
 
 
 //
@@ -53,7 +52,6 @@ void set_size( int n, struct map *map_cfg){
 		height = 1.0;
 		width = 1.0;
 	}
-	max_velocity = 2;//0.9 / max(map_cfg->height, map_cfg->width);
 }
 
 
@@ -105,10 +103,10 @@ void init_particles( int n, particle_t *p, struct map *map_cfg ){
         //
         //  assign random velocities within a bound
         //
-        p[i].vx = drand48() * max_velocity - max_velocity;
-        p[i].vy = drand48() * max_velocity - max_velocity;
+        p[i].vx = drand48() * 2 - 1;
+        p[i].vy = drand48() * 2 - 1;
 		
-		fprintf(stderr, "%s particle %d at %lf %lf, vel (%lf,%lf)\n", MPI_PREPEND, i, p[i].x, p[i].y, p[i].vx, p[i].vy );fflush(stderr);
+		//fprintf(stderr, "%s particle %d at %lf %lf, vel (%lf,%lf)\n", MPI_PREPEND, i, p[i].x, p[i].y, p[i].vx, p[i].vy );fflush(stderr);
     }
     free( shuffle );
 }
@@ -131,8 +129,10 @@ void apply_force( particle_t &particle, particle_t &neighbor )
     //  very simple short-range repulsive force
     //
     double coef = ( 1 - cutoff / r ) / r2 / mass;
-    particle.ax += coef * dx;
-    particle.ay += coef * dy;
+	
+	double max_speedup = 1000.0;
+    particle.ax += sign(coef * dx) * min(max_speedup, abs(coef*dx));
+    particle.ay += sign(coef * dy) * min(max_speedup, abs(coef*dy));
 }
 
 unsigned int cell_for_pos(double x, double y, struct map *map_cfg){
@@ -156,33 +156,19 @@ bool wall_between_x(double new_x, double orig_x, double orig_y, double *wall_x, 
 	unsigned int new_cell = cell_for_pos(new_x, orig_y, map_cfg); //map_cfg->width * row + new_col;
 	unsigned int old_cell = cell_for_pos(orig_x, orig_y, map_cfg); //map_cfg->width * row + old_col;
 	
-	
-
-	//fprintf(stderr, "%s particle at %lf %lf, new_x: %lf\n", MPI_PREPEND, orig_x, orig_y ,new_x);fflush(stderr);
-	//fprintf(stderr, "%u %u %u\t\t%u %u\t\tcell values: %u %u\t%u %u\n", old_col,new_col, row, cell, cell2,map_cfg->data[cell] ,map_cfg->data[cell2], map_cfg->width,map_cfg->height);
-	//fflush(stderr);
-	
-	
-	fprintf(stderr,"x: old cell: %u\tnew cell: %u, (%lf,%lf) (%u,%u), vals (%u,%u)\n",old_cell,new_cell, orig_x,orig_y,new_col, row, map_cfg->data[old_cell]);fflush(stderr);
-	
 	// Old cell should only be one
 	assert(map_cfg->data[old_cell] == 1);
 	// new cell should be valid
 	assert(map_cfg->height > row && map_cfg->width > new_col && new_cell >= 0);
 	
-	fprintf(stderr,"%u)\n", map_cfg->data[new_cell]);fflush(stderr);
-	
-	fprintf(stderr,"\tpassed\n");
 	// return false if both are one, so no wall, walkable.
 	if(map_cfg->data[new_cell] == 1){
-		//fprintf(stderr,"x: (%lf, %lf) -> %lf, both are 1\n", orig_x, orig_y, new_x);
 		return false;
 	}
 	
 	// there is a wall present
 	(*wall_x) = ((double) (new_col > old_col ? new_col : old_col)) / highest_dim;
 	
-	//fprintf(stderr,"x: (%lf, %lf) -> %lf, wall at %lf\n", orig_x, orig_y, new_x, (*wall_x));
 	return true;
 	
 }
@@ -196,30 +182,19 @@ bool wall_between_y(double new_y, double orig_y, double orig_x, double *wall_y, 
 	unsigned int old_cell = cell_for_pos(orig_x, orig_y, map_cfg); // map_cfg->width * old_row + col;
 	unsigned int new_cell = cell_for_pos(orig_x, new_y, map_cfg); // map_cfg->width * new_row + col;
 	
-	
-	
-	fprintf(stderr,"y: old cell: %u\tnew cell: %u, (%lf,%lf) (%u,%u), vals (%u\n",old_cell,new_cell, orig_x,orig_y, col, new_row, map_cfg->data[old_cell]);fflush(stderr);
-	
-	
 	// Old cell should only be one
 	assert(map_cfg->data[old_cell] == 1);
 	// new cell should be valid
 	assert(map_cfg->height > new_row && map_cfg->width > col && new_cell >= 0);
 	
-	fprintf(stderr, "%u)\n",map_cfg->data[new_cell]);fflush(stderr);
-	
-	fprintf(stderr,"\tpassed\n");
-	
 	// return false if both are one, so no wall, walkable.
 	if(map_cfg->data[new_cell] == 1){
-		//fprintf(stderr,"y: (%lf, %lf) -> %lf, both are 1\n", orig_x, orig_y, new_y);
 		return false;
 	}
 	
 	// there is a wall present
 	(*wall_y) = ((double) (new_row > old_row ? new_row : old_row)) / highest_dim;
 	
-	//fprintf(stderr,"y: (%lf, %lf) -> %lf, wall at %lf\n", orig_x, orig_y, new_y, (*wall_y));
 	return true;
 }
 
@@ -246,40 +221,25 @@ void move( particle_t &p, struct map *map_cfg ){
     //
 	double wall_x;
 	double wall_y;
-	fprintf(stderr, "1\n");fflush(stderr);
+	
 	if(wall_between_x(p.x, orig_x, orig_y, &wall_x, map_cfg)){
-	fprintf(stderr, "2\n");fflush(stderr);
-		//while( p.x < 0 || p.x > wall_x ){
-		//fprintf(stderr,"** Calculating x wall: %lf %lf\t\twall: %lf\t\t(%u || %u)\n",orig_x, p.x, wall_x, ((p.x > wall_x && wall_x > orig_x ) ? 1 : 0), ((orig_x > wall_x && wall_x > p.x) ? 1 : 0) );
-		fprintf(stderr,"\tMoving from (%lf,%lf), (%lf,%lf)\n", orig_x,orig_y, p.x,p.y);
+
 		while( (p.x > wall_x && wall_x > orig_x ) || (orig_x > wall_x && wall_x > p.x)){
 
-			//fprintf(stderr,"** Calculating x wall: %lf %lf\t\twall: %lf\t\t(%u || %u)\n",orig_x, p.x, wall_x, ((p.x > wall_x && wall_x > orig_x ) ? 1 : 0), ((orig_x > wall_x && wall_x > p.x) ? 1 : 0) );
-			// p.x  = p.x < wall_x ? orig_x - p.vx*dt : 2*size-p.x;
-			p.x  = 2*wall_x - p.x; //p.x < wall_x ? orig_x - p.vx*dt : 2*wall_x-p.x;
+			p.x  = 2*wall_x - p.x;
 			p.vx = -p.vx;
 		}
-		fprintf(stderr, "\tMoved to (%lf,%lf) cell %u, val %u\n", p.x,p.y, cell_for_pos(p.x,p.y, map_cfg), map_cfg->data[cell_for_pos(p.x,p.y, map_cfg)] );
 	}
-	fprintf(stderr, "3\n");fflush(stderr);
+
 	
 	if(wall_between_y(p.y, orig_y, p.x, &wall_y, map_cfg)){
-	fprintf(stderr, "4\n");fflush(stderr);
-		//while( p.y < 0 || p.y > size ){
-		//fprintf(stderr,"** Calculating y wall: %lf %lf\t\twall: %lf\t\t(%u || %u)\n",orig_y, p.y, wall_y, ((p.y > wall_y && wall_y > orig_y )  ? 1 : 0), ((orig_y > wall_y && wall_y > p.y) ? 1 : 0));
-		
-		fprintf(stderr,"\tMoving from (%lf,%lf)\n", orig_x,orig_y);
 		while( (p.y > wall_y && wall_y > orig_y ) || (orig_y > wall_y && wall_y > p.y)){
-		//fprintf(stderr,"** Calculating y wall: %lf %lf\t\twall: %lf\t\t(%u || %u)\n",orig_y, p.y, wall_y, ((p.y > wall_y && wall_y > orig_y )  ? 1 : 0), ((orig_y > wall_y && wall_y > p.y) ? 1 : 0));
-			p.y  = 2*wall_y - p.y; //p.y < wall_y ? wall_y + (wall_y - p.y) : 2*wall_y-p.y;
+			p.y  = 2*wall_y - p.y;
 			p.vy = -p.vy;
 		}
-		fprintf(stderr,"\tMoved to (%lf,%lf) cell %u, val %u\n", p.x,p.y, cell_for_pos(p.x,p.y, map_cfg), map_cfg->data[cell_for_pos(p.x,p.y, map_cfg)] );
 	}
-	fprintf(stderr, "5\n");fflush(stderr);
 	
 	unsigned int cell = cell_for_pos(p.x,p.y, map_cfg);
-	fprintf(stderr, "** Particle now in %u, %u\n", cell, map_cfg->data[cell]);
 	assert(map_cfg->data[ cell ] == 1);
 }
 
@@ -292,12 +252,13 @@ void save( FILE *f, int n, particle_t *p )
     static bool first = true;
     if( first )
     {
-        fprintf( f, "n %d\nr %lf\ns %lf\n", n, cutoff, size );fflush(f);
+        fprintf( f, "n %d\nr %lf\ns %lf\n", n, cutoff, size );
         first = false;
     }
 	for( int i = 0; i < n; i++ ){
-        fprintf( f, "p %g %g\n", p[i].x, p[i].y );fflush(f);
+        fprintf( f, "p %g %g\n", p[i].x, p[i].y );
 	}
+	fflush(f);
 }
 
 //

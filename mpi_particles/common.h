@@ -6,7 +6,7 @@
 
 inline int min( int a, int b ) { return a < b ? a : b; }
 inline int max( int a, int b ) { return a > b ? a : b; }
-
+inline int sign(double x) {return (x > 0) ? 1 : ((x < 0) ? -1 : 0);}
 
 struct map{
 	unsigned int height;
