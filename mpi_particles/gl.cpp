@@ -203,8 +203,9 @@ void scale_points(Vec<3> *points, int num_particles, double *scale, double *radi
 	int i = 0;
 	
 	if(first_run){
-		double desired_height = 150.0;
+		double desired_height = 300.0;
 		(*scale) = desired_height / x_width;
+		//printf("size: %lf, scale: %lf\n", size, *scale);
 		// This math is kinda hacked, but it gets good results
 		(*radius) = 0.5 * (*radius) * (*scale);
 		//printf("new radius: %lf\n",(*radius));
