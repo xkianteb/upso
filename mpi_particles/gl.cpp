@@ -123,7 +123,7 @@ void get_space_for_items(unsigned int *space_for_items, int *num_items, void **i
     }
 }
 
-int read_input(bool verbose, FILE *fp, Vec<3> **points, int *num_particles, double *radius, double *size, unsigned int *actual_size){
+int read_input(bool verbose, FILE *fp, Vec<3> **points, int *num_particles, double *radius, double *size, unsigned int *actual_size, Vec<3> **colors){
     char * line = NULL;
     size_t len = 0;
     ssize_t read;
@@ -144,6 +144,8 @@ int read_input(bool verbose, FILE *fp, Vec<3> **points, int *num_particles, doub
 	
 	int num_points = 0;
 	// get space for one to start
+	unsigned int t;
+	Vec<3> t_color;
 
 	while((read = getline(&line, &len, fp)) != -1){
         first_term[0] = 0;
@@ -153,10 +155,20 @@ int read_input(bool verbose, FILE *fp, Vec<3> **points, int *num_particles, doub
 		
 		sscanf(line, "%c", first_letter);
 		
+		//fprintf(stderr, "%s got line: %s\n", VIZ_PREPEND, line);
+		
 		if(str_equals("n",first_letter)){
             sscanf(line, "n %u\n", num_particles);
 			fprintf(stderr,"%s got num particles: %u\n",VIZ_PREPEND, *num_particles);
 			batch_malloc_size = *num_particles;
+			
+			if(*colors){
+				free(*colors);
+			}
+			(*colors) = (Vec<3> *) malloc (*num_particles * sizeof(Vec<4>));
+			for(int i = 0; i < *num_particles; i++){
+				(*colors)[i] = Vec3(0,0,0);
+			}
 			
 		}else if(str_equals("r",first_letter)){
             sscanf(line, "r %lf\n", radius);
@@ -167,7 +179,10 @@ int read_input(bool verbose, FILE *fp, Vec<3> **points, int *num_particles, doub
 		}else if(str_equals("a",first_letter)){
 			sscanf(line, "a %u\n", actual_size);
 			fprintf(stderr,"%s actual_size: %u\n", VIZ_PREPEND, *actual_size);
-		
+		}else if(str_equals("c", first_letter)){
+			sscanf(line, "c %u %f %f %f\n", &t, &t_color.x,&t_color.y,&t_color.z);
+			(*colors)[t] = Vec3(t_color.x, t_color.y, t_color.z);
+			fprintf(stderr, "%s got color for particle %u (%f,%f,%f)\n", VIZ_PREPEND, t, (*colors)[t].x,(*colors)[t].y,(*colors)[t].z);
 		}else if(str_equals("p",first_letter)){
 			get_space_for_items(&space_for_points, &num_points, (void **) points, sizeof(Vec<3>), batch_malloc_size, verbose);
 			sscanf(line, "p %lf %lf\n", &x, &y );
@@ -223,6 +238,13 @@ void scale_points(Vec<3> *points, int num_particles, double *scale, double *radi
 	
 }
 
+void update_geom_color(Geometry *geom, unsigned int drawID, unsigned int num_verts, Vec<3> colors){
+	Geometry::Vertex *verts = geom->getVertices(drawID);
+	for(int i = 0; i < num_verts; i++){
+		verts[i].color = colors;
+	}
+}
+
 int draw_data(FILE *fp, bool from_stdin, unsigned int frame_skip){
 
 	GLFWwindow *win = initGLFW();
@@ -230,12 +252,13 @@ int draw_data(FILE *fp, bool from_stdin, unsigned int frame_skip){
 	
 	
 	Vec<3> *points = 0;
+	Vec<3> *colors = 0;
 	double radius = 0.01;
 	int num_particles = 0;
 	int points_read = 0;
 	double size = 0;
 	unsigned int actual_size = 0;
-	points_read = read_input(false, fp, &points, &num_particles, &radius, &size, &actual_size);
+	points_read = read_input(false, fp, &points, &num_particles, &radius, &size, &actual_size, &colors);
 	if(points_read < num_particles){
 		fprintf(stderr,"%s Out of points\n", VIZ_PREPEND);
 		return 0;
@@ -246,6 +269,7 @@ int draw_data(FILE *fp, bool from_stdin, unsigned int frame_skip){
 	
 	Vec<3> current_points[num_particles];
 	unsigned int sphere_draw_ids[num_particles];
+	unsigned int sphere_vertex_counts[num_particles];
 	unsigned int i = 0;
 	
 	
@@ -259,12 +283,15 @@ int draw_data(FILE *fp, bool from_stdin, unsigned int frame_skip){
 		sphere_draw_ids[i] = sph1.drawID;
 		current_points[i].x = points[i].x;
 		current_points[i].y = points[i].y;
+		sphere_vertex_counts[i] = sph1.num_verts;
+		update_geom_color(&appctx.geom, sph1.drawID,sphere_vertex_counts[i], colors[i]);
 	}
 	
 	int fps_seconds = 5;
 	double now = glfwGetTime();
 	double duration = 0;
 	
+	appctx.geom.updateShaders();
 	appctx.geom.finalizeDrawData();
 	
 	appctx.view.update(win);
@@ -272,21 +299,22 @@ int draw_data(FILE *fp, bool from_stdin, unsigned int frame_skip){
 	bool never_drawn = true;
 	unsigned int frames = 0;
 	unsigned int since_last_draw = 0;
-
+	
 	// loop until GLFW says it's time to quit
 	while (!glfwWindowShouldClose(win)) {
 		since_last_draw++;
 		// check for updates while a key is pressed
 	
 		// get new points to draw
-		points_read = read_input(false, fp, &points, &num_particles, &radius, &size, &actual_size);
+		points_read = read_input(false, fp, &points, &num_particles, &radius, &size, &actual_size, &colors);
 		if(points_read < num_particles){
 			fprintf(stderr, "%s Out of points\n", VIZ_PREPEND);
 			break;
 		}
 		
-		if(!frame_skip || since_last_draw >= frame_skip){
 		
+		if(!frame_skip || since_last_draw >= frame_skip){
+			
 			scale_points(points, num_particles, &scale, &radius, size, actual_size, false);
 			
 			appctx.redraw = true;
@@ -297,8 +325,10 @@ int draw_data(FILE *fp, bool from_stdin, unsigned int frame_skip){
 				m.xy = m.xy - current_points[i].xy;
 				current_points[i].xy = points[i].xy;
 				xform = xform * Xform::translate( m );
+				
 			}
 		}
+		
 			
 		duration = glfwGetTime() - now;
 		if(duration > fps_seconds){
@@ -312,7 +342,7 @@ int draw_data(FILE *fp, bool from_stdin, unsigned int frame_skip){
 		// do we need to redraw?
 		if (appctx.redraw) {
 			appctx.redraw = false; // don't draw again until something changes
-
+			
 			// clear old screen contents then draw
 			glClearColor(1.f, 1.f, 1.f, 1.f);
 			glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);

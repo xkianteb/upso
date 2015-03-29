@@ -22,6 +22,8 @@ double width;
 #define min_r   (cutoff/100)
 #define dt      0.0005 // 0.0005
 
+#define RANDOM_COLOR true
+
 //
 //  timer
 //
@@ -78,8 +80,8 @@ bool is_valid_location(double x, double y, struct map *map_cfg){
 void init_particles( int n, particle_t *p, struct map *map_cfg ){
 	unsigned int highest_dim = max(map_cfg->height, map_cfg->width);
     srand48( time( NULL ) );
-        
-    int sx = (int)ceil(sqrt((double)n));
+	
+	int sx = (int)ceil(sqrt((double)n));
     int sy = (n+sx-1)/sx;
     
     int *shuffle = (int*)malloc( n * sizeof(int) );
@@ -105,6 +107,12 @@ void init_particles( int n, particle_t *p, struct map *map_cfg ){
         //
         p[i].vx = drand48() * 2 - 1;
         p[i].vy = drand48() * 2 - 1;
+		
+		// set color:
+		p[i].color_r = RANDOM_COLOR ? drand48() : 0.0;
+		p[i].color_g = RANDOM_COLOR ? drand48() : 0.0;
+		p[i].color_b = RANDOM_COLOR ? drand48() : 0.0;
+		
 		
 		//fprintf(stderr, "%s particle %d at %lf %lf, vel (%lf,%lf)\n", MPI_PREPEND, i, p[i].x, p[i].y, p[i].vx, p[i].vy );fflush(stderr);
     }
@@ -249,14 +257,19 @@ void move( particle_t &p, struct map *map_cfg ){
 void save( FILE *f, int n, particle_t *p, struct map *map_cfg ){
 
     static bool first = true;
-    if( first )
-    {
+    if( first ){
         fprintf( f, "n %d\nr %lf\ns %lf\na %u\n", n, cutoff, size, max(map_cfg->height, map_cfg->width) );
-        first = false;
     }
+	
 	for( int i = 0; i < n; i++ ){
+	
+		if(first){
+			fprintf(f, "c %u %lf %lf %lf\n", i, p[i].color_r,p[i].color_g,p[i].color_b);
+		}
+		
         fprintf( f, "p %g %g\n", p[i].x, p[i].y );
 	}
+	first = false;
 	fflush(f);
 }
 

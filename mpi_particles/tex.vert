@@ -30,13 +30,14 @@ in vec3 position;
 in vec3 normal;
 in vec2 uv;
 in float drawID;
+in vec3 color;
 
 // output to fragment shader
 out vec4 vPosition;
 out vec3 vNormal;
 out vec2 vTexcoord;
 out float vID;
-
+out vec3 vColor;
 
 void main() {
 	// integer ID for which set of model data to use
@@ -53,7 +54,9 @@ void main() {
 
 	// per-vertex normal
 	vNormal = normalize(normal * mat3(MVi));
-
+	
 	// just pass texture coordinates through
 	vTexcoord = uv;
+	
+	vColor = color;
 }

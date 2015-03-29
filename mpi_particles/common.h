@@ -32,6 +32,9 @@ typedef struct
   double vy;
   double ax;
   double ay;
+  double color_r;
+  double color_g;
+  double color_b;
 } particle_t;
 
 //

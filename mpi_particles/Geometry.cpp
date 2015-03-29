@@ -72,6 +72,7 @@ void Geometry::updateShaders() {
 	bindBuffer(shaderID, "position", bufferIDs[VERT_BUFFER],   3, sizeof(Vertex), offsetof(Vertex, pos));
 	bindBuffer(shaderID, "normal",	 bufferIDs[VERT_BUFFER],   3, sizeof(Vertex), offsetof(Vertex, norm));
 	bindBuffer(shaderID, "uv",		 bufferIDs[VERT_BUFFER],   2, sizeof(Vertex), offsetof(Vertex, uv));
+	bindBuffer(shaderID, "color",	 bufferIDs[VERT_BUFFER],   3, sizeof(Vertex),  offsetof(Vertex, color));
 	bindBuffer(shaderID, "drawID",	 bufferIDs[DRAWID_BUFFER], 1, sizeof(float),  0);
 
 	// (re)connect uniform blocks

@@ -17,8 +17,9 @@ Sphere::Sphere(
 	unsigned int w = 16, h = 8;
 
 	// build vertex, normal and texture coordinate arrays
-	unsigned int numvert = (w + 1) * (h + 1), numtri = 2*w*h;
-	drawID = geom.addDraw(numvert, 3*numtri);
+	num_verts = (w + 1) * (h + 1);
+	unsigned int numtri = 2*w*h;
+	drawID = geom.addDraw(num_verts, 3*numtri);
 	Geometry::Vertex *vert = geom.getVertices(drawID);
 	Geometry::Index *tris = geom.getIndices(drawID);
 

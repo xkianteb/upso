@@ -182,7 +182,7 @@ int main( int argc, char **argv ){
     FILE *fsave = savename && rank == 0 ? (write_to_stdout ? stdout : fopen( savename, "w" )) : NULL;
     
     MPI_Datatype PARTICLE;
-    MPI_Type_contiguous( 6, MPI_DOUBLE, &PARTICLE );
+    MPI_Type_contiguous( 9, MPI_DOUBLE, &PARTICLE );
     MPI_Type_commit( &PARTICLE );
     
     //

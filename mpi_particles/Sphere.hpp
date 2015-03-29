@@ -6,6 +6,7 @@
 
 struct Sphere {
 	unsigned int drawID;
+	unsigned int num_verts;
 
 	// create sphere given radius and center
 	Sphere(class Geometry &geom, class Textures &tex, 

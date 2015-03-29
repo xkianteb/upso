@@ -46,6 +46,7 @@ public:
 	struct Vertex {
 		Vec<3> pos, norm;		// position, normal
 		Vec<2> uv;				// u,v texture coordinates
+		Vec<3> color;			// vertex's sphere id
 	};
 	typedef unsigned int Index; // triangle index type
 
