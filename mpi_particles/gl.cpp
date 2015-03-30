@@ -182,7 +182,7 @@ int read_input(bool verbose, FILE *fp, Vec<3> **points, int *num_particles, doub
 		}else if(str_equals("c", first_letter)){
 			sscanf(line, "c %u %f %f %f\n", &t, &t_color.x,&t_color.y,&t_color.z);
 			(*colors)[t] = Vec3(t_color.x, t_color.y, t_color.z);
-			fprintf(stderr, "%s got color for particle %u (%f,%f,%f)\n", VIZ_PREPEND, t, (*colors)[t].x,(*colors)[t].y,(*colors)[t].z);
+			//fprintf(stderr, "%s got color for particle %u (%f,%f,%f)\n", VIZ_PREPEND, t, (*colors)[t].x,(*colors)[t].y,(*colors)[t].z);
 		}else if(str_equals("p",first_letter)){
 			get_space_for_items(&space_for_points, &num_points, (void **) points, sizeof(Vec<3>), batch_malloc_size, verbose);
 			sscanf(line, "p %lf %lf\n", &x, &y );
