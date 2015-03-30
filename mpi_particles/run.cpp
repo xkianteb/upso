@@ -14,14 +14,18 @@ void usage(){
 	printf( "Example run: mpirun -np 2 ./run -p 20 -o stdout | ./run -i stdin\n\n");
 	printf( "Options:\n" );
 	printf( "-h            : this text\n" );
+	printf( "\nOptions for particle simulator:\n");
 	printf( "-p <int>      : set the number of particles (default 2)\n" );
 	printf( "-o <filename> : specify the output file name for logging instead of drawing 3d (can be \"stdout\" for stdout)\n" );
-	printf( "-i <filename> : Load points from this file instead of generating flow (can be \"stdin\" for stdin) (overrides all other settings)\n");
 	printf( "-t <int>      : set the number of timesteps to calculate, default infinite, but %u with -o present\n", NSTEPS );
 	printf( "-c <filename> : Use map config for simulator, defaults to map.cfg (plain old square).\n");
-	printf( "-s <int>      : Frame skip, skips <int> frames every draw. Will speed up simulation visualization.\n");
+	printf( "-x <filename> : Load particle starting configuration.\n");
 	
-	printf("\n\nEither -o or -i must be set.\n");
+	printf( "\nOptions for OpenGL Visualizer:\n");
+	printf( "-s <int>      : Frame skip, skips <int> frames every draw. Will speed up simulation visualization.\n");
+	printf( "-i <filename> : Load points from this file instead of generating flow (can be \"stdin\" for stdin) (overrides all other settings)\n");
+	
+	printf("\n\nEither -o (simulator) or -i (visualizer) must be set.\n");
 	
 }
 
