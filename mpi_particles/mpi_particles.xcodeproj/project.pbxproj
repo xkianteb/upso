@@ -13,6 +13,8 @@
 		694C1BF51AC6E58D00ED66C5 /* map_E.cfg */ = {isa = PBXFileReference; lastKnownFileType = text; path = map_E.cfg; sourceTree = "<group>"; };
 		694C1BF61AC7207200ED66C5 /* map_box.cfg */ = {isa = PBXFileReference; lastKnownFileType = text; path = map_box.cfg; sourceTree = "<group>"; };
 		694C1BF71AC72BD500ED66C5 /* map_disjoint.cfg */ = {isa = PBXFileReference; lastKnownFileType = text; path = map_disjoint.cfg; sourceTree = "<group>"; };
+		694C1C041ACA2EB000ED66C5 /* MultiSphere.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = MultiSphere.hpp; sourceTree = "<group>"; };
+		694C1C051ACA2EB000ED66C5 /* MultiSphere.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = MultiSphere.cpp; sourceTree = "<group>"; };
 		69FAB38F1AC1CAD100302F42 /* common.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = common.cpp; sourceTree = "<group>"; };
 		69FAB3901AC1CAD200302F42 /* common.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = common.h; sourceTree = "<group>"; };
 		69FAB3941AC1FABD00302F42 /* Cylinder.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = Cylinder.cpp; sourceTree = "<group>"; };
@@ -84,6 +86,8 @@
 				69FAB3A31AC1FABD00302F42 /* Shader.cpp */,
 				69FAB3A41AC1FABD00302F42 /* Shader.hpp */,
 				69FAB3A51AC1FABD00302F42 /* Sphere.cpp */,
+				694C1C041ACA2EB000ED66C5 /* MultiSphere.hpp */,
+				694C1C051ACA2EB000ED66C5 /* MultiSphere.cpp */,
 				69FAB3A61AC1FABD00302F42 /* Sphere.hpp */,
 				69FAB3A71AC1FABD00302F42 /* terrain.mtl */,
 				69FAB3A81AC1FABD00302F42 /* tex.frag */,

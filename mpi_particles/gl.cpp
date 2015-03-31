@@ -8,6 +8,7 @@
 #include "View.hpp"
 #include "Generic.hpp"
 #include "Sphere.hpp"
+#include "MultiSphere.hpp"
 #include "Vec.inl"
 
 #include <stdio.h>
@@ -18,6 +19,7 @@
 #include "run.h"
 #include "common.h"
 
+#define Z_AXIS_DEPTH 1
 
 ///////
 // GLFW callbacks must use extern "C"
@@ -188,6 +190,7 @@ int read_input(bool verbose, FILE *fp, Vec<3> **points, int *num_particles, doub
 			sscanf(line, "p %lf %lf\n", &x, &y );
 			(*points)[num_points].x = x;
 			(*points)[num_points].y = y;
+			(*points)[num_points].z = Z_AXIS_DEPTH;
 			num_points++;
 			
 			if(num_points == *num_particles){
@@ -238,8 +241,7 @@ void scale_points(Vec<3> *points, int num_particles, double *scale, double *radi
 	
 }
 
-void update_geom_color(Geometry *geom, unsigned int drawID, unsigned int num_verts, Vec<3> colors){
-	Geometry::Vertex *verts = geom->getVertices(drawID);
+void update_geom_color(Geometry::Vertex *verts, unsigned int num_verts, Vec<3> colors){
 	for(int i = 0; i < num_verts; i++){
 		verts[i].color = colors;
 	}
@@ -268,8 +270,6 @@ int draw_data(FILE *fp, bool from_stdin, unsigned int frame_skip){
 	scale_points(points, num_particles, &scale, &radius, size, actual_size, true);
 	
 	Vec<3> current_points[num_particles];
-	unsigned int sphere_draw_ids[num_particles];
-	unsigned int sphere_vertex_counts[num_particles];
 	unsigned int i = 0;
 	
 	
@@ -278,13 +278,23 @@ int draw_data(FILE *fp, bool from_stdin, unsigned int frame_skip){
 	AppContext appctx(win, distance);
 	Textures tex;
 	
+	// MultiSphere(class Geometry &geom, class Textures &tex, float radius, unsigned int num_spheres)
+	MultiSphere spheres(appctx.geom, tex, radius, num_particles);
+	unsigned int spheres_draw_id = spheres.drawID;
+	unsigned int verts_per_sphere = spheres.num_verts_per_sphere;
+	
+	Geometry::Vertex *verts = appctx.geom.getVertices(spheres_draw_id);
+	Vec<3> dxdydz;
+	unsigned int so_far = 0;
 	for(i = 0; i < num_particles; i++){
-		Sphere sph1(appctx.geom, tex, radius, Vec3(points[i].x, points[i].y, 1) , 1);
-		sphere_draw_ids[i] = sph1.drawID;
-		current_points[i].x = points[i].x;
-		current_points[i].y = points[i].y;
-		sphere_vertex_counts[i] = sph1.num_verts;
-		update_geom_color(&appctx.geom, sph1.drawID,sphere_vertex_counts[i], colors[i]);
+		
+		dxdydz = Vec3(0,0,0) - points[i];
+		for(int j = 0; j < verts_per_sphere; j++){
+			verts[so_far].pos.xy = verts[so_far].pos.xy - dxdydz.xy;
+			so_far++;
+		}
+		current_points[i] = points[i];
+		update_geom_color(verts, verts_per_sphere, colors[i]);
 	}
 	
 	int fps_seconds = 5;
@@ -315,18 +325,25 @@ int draw_data(FILE *fp, bool from_stdin, unsigned int frame_skip){
 		
 		if(!frame_skip || since_last_draw >= frame_skip){
 			
+			
 			scale_points(points, num_particles, &scale, &radius, size, actual_size, false);
-			
 			appctx.redraw = true;
+			so_far = 0;
 			for(i = 0; i < num_particles; i++){
-			
-				Xform &xform = appctx.geom.getModelUniforms( sphere_draw_ids[i] ).modelMats;
-				Vec<3> m = Vec3(points[i].x, points[i].y, 0);
-				m.xy = m.xy - current_points[i].xy;
-				current_points[i].xy = points[i].xy;
-				xform = xform * Xform::translate( m );
 				
+				dxdydz = current_points[i] - points[i];
+				for(int j = 0; j < verts_per_sphere; j++){
+					verts[so_far].pos.xy = verts[so_far].pos.xy - dxdydz.xy;
+					so_far++;
+				}
+				current_points[i] = points[i];
 			}
+			
+			appctx.geom.updateShaders();
+			appctx.geom.finalizeDrawData();
+			
+			appctx.view.update(win);
+			
 		}
 		
 			

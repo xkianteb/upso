@@ -22,7 +22,7 @@ double width;
 #define min_r   (cutoff/100)
 #define dt      0.0005 // 0.0005
 
-#define RANDOM_COLOR true
+#define RANDOM_COLOR false
 
 //
 //  timer
