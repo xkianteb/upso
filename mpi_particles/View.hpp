@@ -16,6 +16,7 @@ private:
 	unsigned int frameUniformBufferID;
 	Geometry::FrameUniforms frameUniforms;
 
+	Vec<3> view_position;
 // public data
 public:
 	int width, height;		// current window dimensions
@@ -26,7 +27,7 @@ public:
 	View(GLFWwindow *win, double distance);
 	~View();
 
-	void update(GLFWwindow *win);	// update after data change
+	void update(GLFWwindow *win, Vec<3> moveRate);	// update after data change
 };
 
 #endif

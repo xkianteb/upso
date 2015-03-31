@@ -32,7 +32,7 @@ extern "C" {
 	// called whenever the window size changes
 	void reshape(GLFWwindow *win, int width, int height) {
 		AppContext *appctx = (AppContext*)glfwGetWindowUserPointer(win);
-		appctx->view.update(win);
+		appctx->view.update(win, Vec3(0,0,0));
 		appctx->redraw = true;
 	}
 
@@ -207,7 +207,7 @@ int read_input(bool verbose, FILE *fp, Vec<3> **points, int *num_particles, doub
 
 bool poll_input(GLFWwindow *win, AppContext *appctx){
 	glfwPollEvents();		// wait for user input
-	appctx->input.keyUpdate(appctx->geom, *win);
+	appctx->input.keyUpdate(appctx->geom, *win, appctx->view);
 	if(glfwWindowShouldClose(win)){
 		
 		return true;
@@ -308,7 +308,7 @@ int draw_data(FILE *fp, bool from_stdin, unsigned int frame_skip, struct map *ma
 	appctx.geom.updateShaders();
 	appctx.geom.finalizeDrawData();
 	
-	appctx.view.update(win);
+	appctx.view.update(win, Vec3(0,0,0));
 	
 	bool never_drawn = true;
 	unsigned int frames = 0;
@@ -354,7 +354,7 @@ int draw_data(FILE *fp, bool from_stdin, unsigned int frame_skip, struct map *ma
 			now = glfwGetTime();
 		}
 		
-		appctx.redraw |= appctx.input.keyUpdate(appctx.geom, *win);
+		appctx.redraw |= appctx.input.keyUpdate(appctx.geom, *win, appctx.view);
 		
 		// do we need to redraw?
 		if (appctx.redraw) {

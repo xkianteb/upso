@@ -3,6 +3,7 @@
 #define Input_hpp
 
 #include "Vec.hpp"
+#include "View.hpp"
 
 // only used by pointer or reference, don't need full include
 struct GLFWwindow;
@@ -36,7 +37,7 @@ public:
 	bool keyPress(Geometry &geom, GLFWwindow &win, int key, int action, int mods);
 
 	// update object position based on key input, return true if redraw required
-	bool keyUpdate(Geometry &geom, GLFWwindow &win);
+	bool keyUpdate(Geometry &geom, GLFWwindow &win, View &view);
 };
 
 #endif

@@ -53,7 +53,7 @@ bool Input::mouseMove(View &view, GLFWwindow &win, double x, double y) {
 		// rotation angle, scaled so across the window = one rotation
 		view.viewSph.x += float(F_PI * dx / view.width);
 		view.viewSph.y += float(0.5f*F_PI * dy / view.height);
-		view.update(&win);
+		view.update(&win, Vec3(0,0,0));
 		redraw = true;			// need to redraw
 	}
 
@@ -68,16 +68,20 @@ bool Input::mouseMove(View &view, GLFWwindow &win, double x, double y) {
 bool Input::keyPress(Geometry &geom, GLFWwindow &win, int key, 
 					 int action, int mods) 
 {
-	if (key=='W' || key=='A' || key=='S' || key=='D') {
+	if (key=='W' || key=='A' || key=='S' || key=='D' || key=='Q' || key=='E') {
 		// rotation keys, respond to both GLFW_PRESS and GLFW_RELEASE
 		if (key=='A')			// move left (in units/second)
-			moveRate.x = (action==GLFW_RELEASE) ? 0.f : -20.f;
+			moveRate.x = (action==GLFW_RELEASE) ? 0.f : 20.f;
 		else if (key=='D')		// move right (in units/second)
-			moveRate.x = (action==GLFW_RELEASE) ? 0.f :	 20.f;
+			moveRate.x = (action==GLFW_RELEASE) ? 0.f :	 -20.f;
 		else if (key=='W')		// move forward (in units/second)
-			moveRate.y = (action==GLFW_RELEASE) ? 0.f :	 20.f;
+			moveRate.z = (action==GLFW_RELEASE) ? 0.f :	 -20.f;
 		else if (key=='S')		// move back (in units/second)
+			moveRate.z = (action==GLFW_RELEASE) ? 0.f : 20.f;
+		else if (key=='Q')		// move up (in units/second)
 			moveRate.y = (action==GLFW_RELEASE) ? 0.f : -20.f;
+		else if (key=='E')		// move down (in units/second)
+			moveRate.y = (action==GLFW_RELEASE) ? 0.f : 20.f;
 
 		updateTime = glfwGetTime();	// record time of keypress
 		return true;					// need to redraw
@@ -101,12 +105,19 @@ bool Input::keyPress(Geometry &geom, GLFWwindow &win, int key,
 }
 
 // update view if necessary based on a/d keys
-bool Input::keyUpdate(Geometry &geom, GLFWwindow &win) {
+bool Input::keyUpdate(Geometry &geom, GLFWwindow &win, View &view) {
 	if (length(moveRate) > 0) {
 		// elapsed time since last update
 		double now = glfwGetTime();
-		//float dt = float(now - updateTime);
+		float dt = float(now - updateTime);
 		updateTime = now;
+
+		moveRate = moveRate * dt * Vec3(50,50,50);
+		//fprintf(stderr, "VIZ) dt: %lf, moverate: %lf,%lf,%lf\n", dt, moveRate.x,moveRate.y, moveRate.z);
+
+		
+		view.update(&win, moveRate);
+		
 
 		// move model based on time elapsed since last update
 		// ensures uniform rate of change

@@ -30,7 +30,7 @@ View::View(GLFWwindow *win, double distance) {
 	glEnable(GL_DEPTH_TEST);
 
 	// initialize scene data
-	update(win);
+	update(win, Vec3(0,0,0));
 }
 
 View::~View() {
@@ -38,7 +38,7 @@ View::~View() {
 }
 
 // New view, pointing to origin, at specified angle
-void View::update(GLFWwindow *win) {
+void View::update(GLFWwindow *win, Vec<3> moveRate) {
 	// set viewport from window dimensions
 	glfwGetFramebufferSize(win, &width, &height);
 	glViewport(0, 0, width, height);
@@ -47,8 +47,10 @@ void View::update(GLFWwindow *win) {
 	frameUniforms.projMats = Xform::perspective(
 		F_PI/4, (float)width/height, 1, 10000);
 
+	view_position = view_position + moveRate;
 	// update view matrix
-	frameUniforms.viewMats = Xform::translate(Vec3(0,0,-viewSph.z))
+	//fprintf(stderr, "view: %lf, %lf, %lf___%lf\n", view_position.x, view_position.y, -viewSph.z + view_position.z, view_position);
+	frameUniforms.viewMats = Xform::translate(Vec3(view_position.x, view_position.y, -viewSph.z + view_position.z))
 		* Xform::xrotate(viewSph.y) * Xform::zrotate(viewSph.x);
 
 	// update shader data
