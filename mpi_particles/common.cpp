@@ -280,7 +280,7 @@ void save( FILE *f, int n, particle_t *p, struct map *map_cfg ){
 	}
 	
 	// For monitoring overall velocity speeds.
-	fprintf(stderr, "Vel: %lf\n",velocity);fflush(stderr);
+	//fprintf(stderr, "Vel: %lf\n",velocity);fflush(stderr);
 	
 	first = false;
 	fflush(f);
