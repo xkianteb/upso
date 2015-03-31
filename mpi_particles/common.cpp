@@ -256,6 +256,7 @@ void move( particle_t &p, struct map *map_cfg ){
 //
 void save( FILE *f, int n, particle_t *p, struct map *map_cfg ){
 
+	double velocity = 0.0;
     static bool first = true;
     if( first ){
         fprintf( f, "n %d\nr %lf\ns %lf\na %u\n", n, cutoff, size, max(map_cfg->height, map_cfg->width) );
@@ -268,7 +269,13 @@ void save( FILE *f, int n, particle_t *p, struct map *map_cfg ){
 		}
 		
         fprintf( f, "p %g %g\n", p[i].x, p[i].y );
+		
+		velocity += abs(p[i].vx) + abs(p[i].vy);
 	}
+	
+	// For monitoring overall velocity speeds.
+	//fprintf(stderr, "Vel: %lf\n",velocity);fflush(stderr);
+	
 	first = false;
 	fflush(f);
 }
