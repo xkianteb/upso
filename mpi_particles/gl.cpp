@@ -294,7 +294,7 @@ int draw_data(FILE *fp, bool from_stdin, unsigned int frame_skip){
 			so_far++;
 		}
 		current_points[i] = points[i];
-		update_geom_color(verts, verts_per_sphere, colors[i]);
+		update_geom_color(&(verts[verts_per_sphere * i]), verts_per_sphere, colors[i]);
 	}
 	
 	int fps_seconds = 5;
