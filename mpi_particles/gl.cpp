@@ -339,11 +339,7 @@ int draw_data(FILE *fp, bool from_stdin, unsigned int frame_skip){
 				current_points[i] = points[i];
 			}
 			
-			appctx.geom.updateShaders();
 			appctx.geom.finalizeDrawData();
-			
-			appctx.view.update(win);
-			
 		}
 		
 			
