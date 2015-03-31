@@ -206,7 +206,7 @@ int main( int argc, char **argv ){
 	
     int *partition_offsets = (int*) malloc( (n_proc + 1) * sizeof(int) );
     for( int i = 0; i < n_proc+1; i++ ){
-        partition_offsets[i] = min( i * particle_per_proc, num_particles );
+        partition_offsets[i] = MIN( i * particle_per_proc, num_particles );
 	}
     
     int *partition_sizes = (int*) malloc( n_proc * sizeof(int) );

@@ -4,8 +4,9 @@
 #define MPI_PREPEND "MPI)"
 #define VIZ_PREPEND "VIZ)"
 
-inline int min( int a, int b ) { return a < b ? a : b; }
-inline int max( int a, int b ) { return a > b ? a : b; }
+#define MIN(a,b) (a > b ? b : a)
+#define MAX(a,b) (a > b ? a : b)
+
 inline int sign(double x) {return (x > 0) ? 1 : ((x < 0) ? -1 : 0);}
 
 struct map{

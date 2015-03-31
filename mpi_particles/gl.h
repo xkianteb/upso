@@ -9,14 +9,6 @@
 #include "Textures.hpp"
 #include "Vec.inl"
 
-
-
-#define MIN(a,b) (a > b ? b : a)
-#define MAX(a,b) (a > b ? a : b)
-
-
-
-
 // collected state for access in callbacks
 struct AppContext {
 	Geometry geom;				  // drawing data

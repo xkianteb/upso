@@ -58,7 +58,7 @@ void set_size( int n, struct map *map_cfg){
 
 
 bool is_valid_location(double x, double y, struct map *map_cfg){
-	unsigned int highest_dim = max(map_cfg->height, map_cfg->width);
+	unsigned int highest_dim = MAX(map_cfg->height, map_cfg->width);
 	
 	unsigned int col = (int) floor(x * highest_dim);
 	unsigned int row = (int) floor(y * highest_dim);
@@ -78,7 +78,7 @@ bool is_valid_location(double x, double y, struct map *map_cfg){
 //  Initialize the particle positions and velocities
 //
 void init_particles( int n, particle_t *p, struct map *map_cfg ){
-	unsigned int highest_dim = max(map_cfg->height, map_cfg->width);
+	unsigned int highest_dim = MAX(map_cfg->height, map_cfg->width);
     srand48( time( NULL ) );
 	
 	int sx = (int)ceil(sqrt((double)n));
@@ -130,7 +130,7 @@ void apply_force( particle_t &particle, particle_t &neighbor )
     double r2 = dx * dx + dy * dy;
     if( r2 > cutoff*cutoff )
         return;
-    r2 = fmax( r2, min_r*min_r );
+    r2 = MAX( r2, min_r*min_r );
     double r = sqrt( r2 );
 
     //
@@ -139,12 +139,12 @@ void apply_force( particle_t &particle, particle_t &neighbor )
     double coef = ( 1 - cutoff / r ) / r2 / mass;
 	
 	double max_speedup = 1000.0;
-    particle.ax += sign(coef * dx) * min(max_speedup, abs(coef*dx));
-    particle.ay += sign(coef * dy) * min(max_speedup, abs(coef*dy));
+    particle.ax += sign(coef * dx) * MIN(max_speedup, fabs(coef*dx));
+    particle.ay += sign(coef * dy) * MIN(max_speedup, fabs(coef*dy));
 }
 
 unsigned int cell_for_pos(double x, double y, struct map *map_cfg){
-	unsigned int highest_dim = max(map_cfg->height, map_cfg->width);
+	unsigned int highest_dim = MAX(map_cfg->height, map_cfg->width);
 	unsigned int col = (unsigned int) floor(x * highest_dim);
 	unsigned int row = (unsigned int) floor(y * highest_dim);
 	
@@ -156,7 +156,7 @@ unsigned int cell_for_pos(double x, double y, struct map *map_cfg){
 // true: wall between x1 and x2
 // *wall_x: will have the x coord of the wall
 bool wall_between_x(double new_x, double orig_x, double orig_y, double *wall_x, struct map *map_cfg){
-	unsigned int highest_dim = max(map_cfg->height, map_cfg->width);
+	unsigned int highest_dim = MAX(map_cfg->height, map_cfg->width);
 	unsigned int new_col = (unsigned int) floor(new_x * highest_dim);
 	unsigned int old_col = (unsigned int) floor(orig_x * highest_dim);
 	unsigned int row = (int) floor(orig_y * highest_dim);
@@ -182,7 +182,7 @@ bool wall_between_x(double new_x, double orig_x, double orig_y, double *wall_x, 
 }
 
 bool wall_between_y(double new_y, double orig_y, double orig_x, double *wall_y, struct map *map_cfg){
-	unsigned int highest_dim = max(map_cfg->height, map_cfg->width);
+	unsigned int highest_dim = MAX(map_cfg->height, map_cfg->width);
 	unsigned int new_row = (unsigned int) floor(new_y * highest_dim);
 	unsigned int old_row = (unsigned int) floor(orig_y * highest_dim);
 	unsigned int col = (int) floor(orig_x * highest_dim);
@@ -221,6 +221,12 @@ void move( particle_t &p, struct map *map_cfg ){
 	
     p.vx += p.ax * dt;
     p.vy += p.ay * dt;
+	
+	
+	// Consider removing these lines later. Used to avoid speed explosions.
+	p.vx = ((double) sign(p.vx)) * ((double) MIN(2.0, fabs(p.vx)));
+	p.vy = ((double) sign(p.vy)) * ((double) MIN(2.0, fabs(p.vy)));
+	
     p.x  += p.vx * dt;
     p.y  += p.vy * dt;
 
@@ -259,7 +265,7 @@ void save( FILE *f, int n, particle_t *p, struct map *map_cfg ){
 	double velocity = 0.0;
     static bool first = true;
     if( first ){
-        fprintf( f, "n %d\nr %lf\ns %lf\na %u\n", n, cutoff, size, max(map_cfg->height, map_cfg->width) );
+        fprintf( f, "n %d\nr %lf\ns %lf\na %u\n", n, cutoff, size, MAX(map_cfg->height, map_cfg->width) );
     }
 	
 	for( int i = 0; i < n; i++ ){
@@ -270,11 +276,11 @@ void save( FILE *f, int n, particle_t *p, struct map *map_cfg ){
 		
         fprintf( f, "p %g %g\n", p[i].x, p[i].y );
 		
-		velocity += abs(p[i].vx) + abs(p[i].vy);
+		velocity += fabs(p[i].vx) + fabs(p[i].vy);
 	}
 	
 	// For monitoring overall velocity speeds.
-	//fprintf(stderr, "Vel: %lf\n",velocity);fflush(stderr);
+	fprintf(stderr, "Vel: %lf\n",velocity);fflush(stderr);
 	
 	first = false;
 	fflush(f);
