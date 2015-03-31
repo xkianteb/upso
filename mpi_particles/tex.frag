@@ -3,7 +3,7 @@
 
 
 // must match value in Geometry.hpp
-#define MAX_DRAWS 351
+#define MAX_DRAWS 100
 
 // must match value in Image.hpp
 #define MAX_TEXTURE_ARRAYS 8

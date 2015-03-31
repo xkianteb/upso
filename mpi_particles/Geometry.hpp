@@ -15,7 +15,7 @@
 
 // GL version less than 4.1 likes fixed size arrays.
 // If you change this, update it in any shaders too.
-#define MAX_DRAWS 351
+#define MAX_DRAWS 100
 
 class Geometry {
 public:
