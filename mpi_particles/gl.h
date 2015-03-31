@@ -27,7 +27,7 @@ struct AppContext {
 };
 
 
-int draw_data(FILE *fp, bool from_stdin, unsigned int frame_skip);
+int draw_data(FILE *fp, bool from_stdin, unsigned int frame_skip, struct map *map_cfg);
 
 bool str_equals(char *a, char *b);
 

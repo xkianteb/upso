@@ -25,6 +25,10 @@ void usage(){
 	printf( "-s <int>      : Frame skip, skips <int> frames every draw. Will speed up simulation visualization.\n");
 	printf( "-i <filename> : Load points from this file instead of generating flow (can be \"stdin\" for stdin) (overrides all other settings)\n");
 	
+	
+	printf( "\nOptions for either:\n");
+	printf( "-c <filename> : Use map config, defaults to map.cfg (plain old square). Visualizer uses this to draw walls around points.\n");
+	
 	printf("\n\nEither -o (simulator) or -i (visualizer) must be set.\n");
 	
 }
@@ -111,7 +115,15 @@ int main( int argc, char **argv ){
 	}
 	bool read_from_stdin = input_file && str_equals(input_file, "stdin");
 	
+	char *map_cfg_file = NULL;
+	map_cfg_file = read_string( argc, argv, "-c", "map.cfg" );
 	
+	// Read map config by rank 0, process it, and broadcast it out
+	struct map map_cfg = {0,0,0};
+	if(rank == 0){
+		FILE *fp = fopen(map_cfg_file, "r");
+		read_map(fp, &map_cfg);
+	}
 	
 	int num_particles = 2;
 	
@@ -125,7 +137,7 @@ int main( int argc, char **argv ){
 			}
 			
 			FILE *fp = read_from_stdin ? stdin : fopen(input_file, "r");
-			draw_data(fp, read_from_stdin, frame_skip);
+			draw_data(fp, read_from_stdin, frame_skip, &map_cfg);
 			if(!read_from_stdin){
 				fclose(fp);
 			}
@@ -157,15 +169,6 @@ int main( int argc, char **argv ){
 	}
     particle_t *particles = (particle_t*) malloc( num_particles * sizeof(particle_t) );
 	
-	char *map_cfg_file = NULL;
-	map_cfg_file = read_string( argc, argv, "-c", "map.cfg" );
-	
-	// Read map config by rank 0, process it, and broadcast it out
-	struct map map_cfg = {0,0,0};
-	if(rank == 0){
-		FILE *fp = fopen(map_cfg_file, "r");
-		read_map(fp, &map_cfg);
-	}
 	
 	MPI_Bcast(&map_cfg.height, 1, MPI_UNSIGNED, 0, MPI_COMM_WORLD );
 	MPI_Bcast(&map_cfg.width, 1, MPI_UNSIGNED, 0, MPI_COMM_WORLD );

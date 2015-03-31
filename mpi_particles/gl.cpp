@@ -247,7 +247,7 @@ void update_geom_color(Geometry::Vertex *verts, unsigned int num_verts, Vec<3> c
 	}
 }
 
-int draw_data(FILE *fp, bool from_stdin, unsigned int frame_skip){
+int draw_data(FILE *fp, bool from_stdin, unsigned int frame_skip, struct map *map_cfg){
 
 	GLFWwindow *win = initGLFW();
 	assert(win);				// window must exist
@@ -296,6 +296,10 @@ int draw_data(FILE *fp, bool from_stdin, unsigned int frame_skip){
 		current_points[i] = points[i];
 		update_geom_color(&(verts[verts_per_sphere * i]), verts_per_sphere, colors[i]);
 	}
+	
+	// draw walls: Not done yet.
+	
+	
 	
 	int fps_seconds = 5;
 	double now = glfwGetTime();
