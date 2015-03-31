@@ -105,7 +105,7 @@ bool Input::keyUpdate(Geometry &geom, GLFWwindow &win) {
 	if (length(moveRate) > 0) {
 		// elapsed time since last update
 		double now = glfwGetTime();
-		float dt = float(now - updateTime);
+		//float dt = float(now - updateTime);
 		updateTime = now;
 
 		// move model based on time elapsed since last update
