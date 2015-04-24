@@ -179,8 +179,8 @@ void apply_force( particle_t &particle, particle_t &neighbor )
 {
 	// Add .1 percent to avoid dealing with collisions
 	// So everyone just rushes pass each other
-    double dx = (neighbor.x - particle.x) + (sign(neighbor.x - particle.x) *.1);
-    double dy = (neighbor.y - particle.y) + (sign(neighbor.y - particle.y) *.1);
+    double dx = (neighbor.x - particle.x) + (sign(neighbor.x - particle.x) * -.1);
+    double dy = (neighbor.y - particle.y) + (sign(neighbor.y - particle.y) * -.1);
     double r2 = dx * dx + dy * dy;
     if( r2 > cutoff*cutoff )
         return;
