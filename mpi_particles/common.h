@@ -14,6 +14,8 @@ struct map{
 	unsigned int width;
 	// data as one long row-major sequence
 	unsigned short *data;
+  unsigned int goal_col;
+  unsigned int goal_row;
 };
 
 //
@@ -33,6 +35,7 @@ typedef struct
   double vy;
   double ax;
   double ay;
+  double goal;
   double color_r;
   double color_g;
   double color_b;

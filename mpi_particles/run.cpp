@@ -50,8 +50,11 @@ void read_map(FILE *fp, struct map *map_cfg){
 	
 	map_cfg->height = 0;
 	map_cfg->width = 0;
+	map_cfg->goal_col = 0;
+	map_cfg->goal_row = 0;
 	map_cfg->data = NULL;
 	unsigned int cells_read = 0;
+	unsigned int cells_rows = 0;
 	char cell;
 
 	while((read = getline(&line, &len, fp)) != -1){
@@ -77,8 +80,20 @@ void read_map(FILE *fp, struct map *map_cfg){
 				map_cfg->data[cells_read] = (unsigned short) (cell - '0');
 				//printf("read cell %i, %c, %u\n", i, cell, map_cfg->data[cells_read]);
 				cells_read++;
+				//fprintf(stderr,"goal: row[%u] col[%u]\n",cells_rows,i);
+				int check = (int)(cell - '0');
+				//printf("---result: %u\n", check);
+
+				if (check == (int) 3) {
+					map_cfg->goal_col = i;
+  					map_cfg->goal_row = cells_rows;
+
+  					printf("goal: row[%u] col[%u]\n",cells_rows,i);
+				}
 			}
-			
+
+			//fprintf(stderr,"cell rows: %u\n",cells_rows);
+			cells_rows++;
 		}
 
 		// should only run this once, then it mallocs.
@@ -172,6 +187,8 @@ int main( int argc, char **argv ){
 	
 	MPI_Bcast(&map_cfg.height, 1, MPI_UNSIGNED, 0, MPI_COMM_WORLD );
 	MPI_Bcast(&map_cfg.width, 1, MPI_UNSIGNED, 0, MPI_COMM_WORLD );
+	MPI_Bcast(&map_cfg.goal_row, 1, MPI_UNSIGNED, 0, MPI_COMM_WORLD );
+	MPI_Bcast(&map_cfg.goal_col, 1, MPI_UNSIGNED, 0, MPI_COMM_WORLD );
 	
 	if(rank > 0 && map_cfg.height > 0 && map_cfg.width > 0){
 		map_cfg.data = (unsigned short *) malloc (map_cfg.height * map_cfg.width * sizeof(unsigned short));
@@ -189,7 +206,7 @@ int main( int argc, char **argv ){
     FILE *fsave = savename && rank == 0 ? (write_to_stdout ? stdout : fopen( savename, "w" )) : NULL;
     
     MPI_Datatype PARTICLE;
-    MPI_Type_contiguous( 9, MPI_DOUBLE, &PARTICLE );
+    MPI_Type_contiguous( 10, MPI_DOUBLE, &PARTICLE );
     MPI_Type_commit( &PARTICLE );
     
     //
