@@ -87,7 +87,7 @@ void read_map(FILE *fp, struct map *map_cfg){
 					map_cfg->goal_col = i;
   					map_cfg->goal_row = cells_rows;
 
-  					printf("goal: row[%u] col[%u]\n",cells_rows,i);
+  					fprintf(stderr,"goal: row[%u] col[%u]\n",cells_rows,i);
 				}
 			}
 
