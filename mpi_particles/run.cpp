@@ -50,8 +50,6 @@ void read_map(FILE *fp, struct map *map_cfg){
 	
 	map_cfg->height = 0;
 	map_cfg->width = 0;
-	map_cfg->goal_col = 0;
-	map_cfg->goal_row = 0;
 	map_cfg->data = NULL;
 	unsigned int cells_read = 0;
 	unsigned int cells_rows = 0;
@@ -187,8 +185,6 @@ int main( int argc, char **argv ){
 	
 	MPI_Bcast(&map_cfg.height, 1, MPI_UNSIGNED, 0, MPI_COMM_WORLD );
 	MPI_Bcast(&map_cfg.width, 1, MPI_UNSIGNED, 0, MPI_COMM_WORLD );
-	MPI_Bcast(&map_cfg.goal_row, 1, MPI_UNSIGNED, 0, MPI_COMM_WORLD );
-	MPI_Bcast(&map_cfg.goal_col, 1, MPI_UNSIGNED, 0, MPI_COMM_WORLD );
 	
 	if(rank > 0 && map_cfg.height > 0 && map_cfg.width > 0){
 		map_cfg.data = (unsigned short *) malloc (map_cfg.height * map_cfg.width * sizeof(unsigned short));
@@ -206,7 +202,7 @@ int main( int argc, char **argv ){
     FILE *fsave = savename && rank == 0 ? (write_to_stdout ? stdout : fopen( savename, "w" )) : NULL;
     
     MPI_Datatype PARTICLE;
-    MPI_Type_contiguous( 10, MPI_DOUBLE, &PARTICLE );
+    MPI_Type_contiguous( 11, MPI_DOUBLE, &PARTICLE );
     MPI_Type_commit( &PARTICLE );
     
     //

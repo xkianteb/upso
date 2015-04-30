@@ -35,7 +35,9 @@ typedef struct
   double vy;
   double ax;
   double ay;
-  double goal;
+  //double goal;
+  double goal_x;
+  double goal_y;
   double color_r;
   double color_g;
   double color_b;

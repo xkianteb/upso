@@ -6,7 +6,9 @@
 #include <math.h>
 #include <time.h>
 #include <sys/time.h>
+#include <cmath>
 #include "common.h"
+
 
 double size;
 double height;
@@ -74,52 +76,36 @@ bool is_valid_location(double x, double y, struct map *map_cfg){
 }
 
 // Checks to see if you are movning toward goal
-double is_valid_direction_y(double vy, double y, struct map *map_cfg)
+double is_valid_direction_y(double vy, double y, double goal_y)
 {
-    unsigned int highest_dim = MAX(map_cfg->height, map_cfg->width);
-	double row = (double) floor(y * highest_dim);
-	double goal = map_cfg->goal_row;
-
-	//unsigned int cell = map_cfg->width * row + col;
-	//printf("%lf %lf\t\t%u %u\t\t%u\t\t%u %u\n", x,y,col,row, cell, map_cfg->width,map_cfg->height);fflush(stdout);
+    //unsigned int highest_dim = MAX(map_cfg->height, map_cfg->width);
+	//double row = (double) floor(y * highest_dim);
+	//double goal = map_cfg->goal_row;
 	
-	double direction = (goal-row);
-	//printf("---- GOAL: [%f,%u] ---- ROW: %f\n", goal, map_cfg->goal_row, row);
-	//printf("Direction x: %f vs. Vy: %f\n", row, goal);
-	//return (sign(direction) == sign(vy));
-	return goal -row;
+	//double direction = (goal-row);
+	return goal_y -y;
 }
 
 // Checks to see if you are movning toward goal
-double is_valid_direction_x(double vx, double x, struct map *map_cfg)
+double is_valid_direction_x(double vx, double x, double goal_x)
 {
-	unsigned int highest_dim = MAX(map_cfg->height, map_cfg->width);
+	//unsigned int highest_dim = MAX(map_cfg->height, map_cfg->width);
+	//double col = (double) floor(x * highest_dim);
+	//double goal = map_cfg->goal_col;
 	
-	double col = (double) floor(x * highest_dim);
-	double goal = map_cfg->goal_col;
-
-	//unsigned int row = (int) floor(y * highest_dim);
-	//unsigned int cell = map_cfg->width * row + col;
-	//printf("%lf %lf\t\t%u %u\t\t%u\t\t%u %u\n", x,y,col,row, cell, map_cfg->width,map_cfg->height);fflush(stdout);
-	
-	double direction = (goal-col);
-	//printf("---- GOAL: [%f,%u] ---- Col: %f\n", goal, map_cfg->goal_col, col);
-	//return (sign(direction) == sign(vx));
-	return goal-col;
+	//double direction = (goal-col);
+	return goal_x-x;
 }
 
-bool at_goal(double x, double y, struct map *map_cfg)
+bool at_goal(double x, double y, double goal_x, double goal_y)
 {
-	unsigned int highest_dim = MAX(map_cfg->height, map_cfg->width);
+    using std::abs;
+    
+    int n = 2; // Precision to how close the coordinates should be to goal
+    int x_result = abs(x - goal_x) < pow(0.1, n) * fmax(abs(x), abs(goal_x));
+    int y_result = abs(y - goal_y) < pow(0.1, n) * fmax(abs(y), abs(goal_y));
 	
-	unsigned int col = (int) floor(x * highest_dim);
-	unsigned int row = (int) floor(y * highest_dim);
-	
-	unsigned int cell = map_cfg->width * row + col;
-
-	//printf("Goal Row: [%u] and Goal Col: [%u]\n", map_cfg->goal_row, map_cfg->goal_col);
-	//printf("Cell num: %d\n",  map_cfg->data[cell]);
-	return map_cfg->data[cell] == 3;
+    return (x_result + y_result);
 }
 
 
@@ -149,6 +135,8 @@ void init_particles( int n, particle_t *p, struct map *map_cfg ){
 		do{
 			p[i].x = drand48() * size; //size*(1.+(k%sx))/(1+sx);
 			p[i].y = drand48() * size; //size*(1.+(k/sx))/(1+sy);
+            p[i].goal_x = drand48() * size;
+            p[i].goal_y = drand48() * size;
 		}while(!is_valid_location(p[i].x, p[i].y, map_cfg));
 		
         //
@@ -156,8 +144,8 @@ void init_particles( int n, particle_t *p, struct map *map_cfg ){
         p[i].vx = (drand48() * 2.0) + 1.0;
         p[i].vy = (drand48() * 2.0) + 1.0;
 
-        double x_direction = is_valid_direction_x(p[i].vx, p[i].x, map_cfg);
-    	double y_direction = is_valid_direction_y(p[i].vy, p[i].y, map_cfg);
+        double x_direction = is_valid_direction_x(p[i].vx, p[i].x, p[i].goal_x);
+    	double y_direction = is_valid_direction_y(p[i].vy, p[i].y, p[i].goal_y);
     	p[i].vx *= sign(x_direction);
         p[i].vy *= sign(y_direction);
 		
@@ -165,7 +153,7 @@ void init_particles( int n, particle_t *p, struct map *map_cfg ){
 		p[i].color_r = RANDOM_COLOR ? drand48() : 0.0;
 		p[i].color_g = RANDOM_COLOR ? drand48() : 0.0;
 		p[i].color_b = RANDOM_COLOR ? drand48() : 0.0;
-		p[i].goal = 3;
+		//p[i].goal = 3;
 		
 		//fprintf(stderr, "%s particle %d at %lf %lf, vel (%lf,%lf)\n", MPI_PREPEND, i, p[i].x, p[i].y, p[i].vx, p[i].vy );fflush(stderr);
     }
@@ -179,8 +167,8 @@ void apply_force( particle_t &particle, particle_t &neighbor )
 {
 	// Add .1 percent to avoid dealing with collisions
 	// So everyone just rushes pass each other
-    double dx = (neighbor.x - particle.x) + (sign(neighbor.x - particle.x) * -.1);
-    double dy = (neighbor.y - particle.y) + (sign(neighbor.y - particle.y) * -.1);
+    double dx = (neighbor.x - particle.x) + (sign(neighbor.x - particle.x) *.1);
+    double dy = (neighbor.y - particle.y) + (sign(neighbor.y - particle.y) *.1);
     double r2 = dx * dx + dy * dy;
     if( r2 > cutoff*cutoff )
         return;
@@ -218,10 +206,10 @@ bool wall_between_x(double new_x, double orig_x, double orig_y, double *wall_x, 
 	unsigned int new_cell = cell_for_pos(new_x, orig_y, map_cfg); //map_cfg->width * row + new_col;
 	unsigned int old_cell = cell_for_pos(orig_x, orig_y, map_cfg); //map_cfg->width * row + old_col;
 	
-	// Old cell should only be one
-	assert(map_cfg->data[old_cell] != 0);
-	// new cell should be valid
-	assert(map_cfg->height > row && map_cfg->width > new_col && new_cell != 0);
+    // Old cell should only be one
+    assert(map_cfg->data[old_cell] == 1);
+    // new cell should be valid
+    assert(map_cfg->height > row && map_cfg->width > new_col && new_cell >= 0);
 	
 	// return false if both are one, so no wall, walkable.
 	if(map_cfg->data[new_cell] != 0){
@@ -244,10 +232,10 @@ bool wall_between_y(double new_y, double orig_y, double orig_x, double *wall_y, 
 	unsigned int old_cell = cell_for_pos(orig_x, orig_y, map_cfg); // map_cfg->width * old_row + col;
 	unsigned int new_cell = cell_for_pos(orig_x, new_y, map_cfg); // map_cfg->width * new_row + col;
 	
-	// Old cell should only be one
-	assert(map_cfg->data[old_cell] != 0);
-	// new cell should be valid
-	assert(map_cfg->height > new_row && map_cfg->width > col && new_cell != 0);
+    // Old cell should only be one
+    assert(map_cfg->data[old_cell] == 1);
+    // new cell should be valid
+    assert(map_cfg->height > new_row && map_cfg->width > col && new_cell >= 0);
 	
 	// return false if both are one, so no wall, walkable.
 	if(map_cfg->data[new_cell] != 0){
@@ -279,7 +267,7 @@ void move( particle_t &p, struct map *map_cfg ){
 	p.vx = ((double) sign(p.vx)) * ((double) MIN(2.0, fabs(p.vx)));
 	p.vy = ((double) sign(p.vy)) * ((double) MIN(2.0, fabs(p.vy)));
 
-	double x_direction = is_valid_direction_x(p.vx, p.x, map_cfg);
+	double x_direction = is_valid_direction_x(p.vx, p.x, p.goal_x);
 	if (x_direction > 0) {
     	p.vx += p.ax * dt;
     } else if (x_direction < 0) {
@@ -290,7 +278,7 @@ void move( particle_t &p, struct map *map_cfg ){
     }
 
     //fprintf(stderr,"direction: %u\n",is_valid_direction_y(p.vy, p.y, map_cfg));
-    double y_direction = is_valid_direction_y(p.vy, p.y, map_cfg);
+    double y_direction = is_valid_direction_y(p.vy, p.y, p.goal_y);
     if(y_direction > 0) {
     	p.vy += p.ay * dt;
 	} else if(y_direction < 0){
@@ -306,7 +294,7 @@ void move( particle_t &p, struct map *map_cfg ){
 	//fprintf(stderr,"velocity x: %f\n",p.vx);
 	//fprintf(stderr,"velocity y: %f\n",p.vy);
 
-	if(!at_goal(p.x, p.y, map_cfg)) {
+	if(!at_goal(p.x, p.y, p.goal_x, p.goal_y)) {
     	p.x  += p.vx * dt;
     	p.y  += p.vy * dt;
     }
@@ -322,7 +310,7 @@ void move( particle_t &p, struct map *map_cfg ){
 		while( (p.x > wall_x && wall_x > orig_x ) || (orig_x > wall_x && wall_x > p.x)){
 
 			p.x  = 2*wall_x - p.x;
-			x_direction = is_valid_direction_x(p.vx, p.x, map_cfg);
+			x_direction = is_valid_direction_x(p.vx, p.x, p.goal_x);
 			//printf("---X Here: Velocity x,y: [%f,%f] Postion: [%f,%f] Direction: [%f]\n", p.vx, p.vy, p.x,p.y, x_direction);
 			if(x_direction < 0 ){
 				p.vx *= -1.0;
@@ -339,7 +327,7 @@ void move( particle_t &p, struct map *map_cfg ){
 	if(wall_between_y(p.y, orig_y, p.x, &wall_y, map_cfg)){
 		while( (p.y > wall_y && wall_y > orig_y ) || (orig_y > wall_y && wall_y > p.y)){
 			p.y  = 2*wall_y - p.y;
-			y_direction = is_valid_direction_x(p.vy, p.y, map_cfg);
+			y_direction = is_valid_direction_y(p.vy, p.y, p.goal_y);
 			//printf("---Y Here: Velocity x,y: [%f,%f] Postion: [%f,%f] Direction: [%f]\n", p.vx, p.vy, p.x,p.y, y_direction);
 			if(y_direction < 0 ){
 				p.vy *= -1.0;
