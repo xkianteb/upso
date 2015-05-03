@@ -52,7 +52,8 @@ double read_timer( );
 //  simulation routines
 //
 void set_size( int n, struct map *map_cfg);
-void init_particles( int n, particle_t *p, struct map *map_cfg );
+//void init_particles( int n, particle_t *p, struct map *map_cfg );
+void init_particles( int n, int sn, double agents[][4], particle_t *p, struct map *map_cfg );
 void apply_force( particle_t &particle, particle_t &neighbor );
 void move( particle_t &p, struct map *map_cfg );
 

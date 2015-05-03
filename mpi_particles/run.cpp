@@ -20,7 +20,8 @@ void usage(){
 	printf( "-t <int>      : set the number of timesteps to calculate, default infinite, but %u with -o present\n", NSTEPS );
 	printf( "-c <filename> : Use map config for simulator, defaults to map.cfg (plain old square).\n");
 	printf( "-x <filename> : Load particle starting configuration.\n");
-	
+	printf( "-y <agents number> : Number of agents in the -p file.\n");
+
 	printf( "\nOptions for OpenGL Visualizer:\n");
 	printf( "-s <int>      : Frame skip, skips <int> frames every draw. Will speed up simulation visualization.\n");
 	printf( "-i <filename> : Load points from this file instead of generating flow (can be \"stdin\" for stdin) (overrides all other settings)\n");
@@ -164,8 +165,52 @@ int main( int argc, char **argv ){
 	
 	// Won't get here if '-i' is provided.
 	
-    num_particles = read_int( argc, argv, "-p", 2 );
+    //num_particles = read_int( argc, argv, "-p", 2 );
+	num_particles = 0;
 	
+	// Read in the special agents
+	char *input_agents = NULL;
+	if(find_option(argc, argv, "-p") >= 0){
+		input_agents = read_string( argc, argv, "-p", NULL );
+	}
+	
+	char line [ 256 ];
+	double t1=0.0, t2=0.0, t3=0.0, t4=0.0;
+
+	int special_agents_count = read_int( argc, argv, "-y", 0);
+	num_particles += special_agents_count;
+	double agents[special_agents_count][4];
+
+
+	if(input_agents) {
+
+		if(rank == 0){ 
+			FILE *fp = fopen(input_agents, "r");
+
+			int row = 0;			
+			while ( fgets ( line, sizeof(line), fp ) != NULL ) {
+				//printf("line: %s", line);
+				
+				char * pch = strtok (line," ");
+				int agent_input_size = sscanf(pch, "%lf,%lf,%lf,%lf", &agents[row][0], &agents[row][1], 
+					   &agents[row][2], &agents[row][3]);
+
+				if (agent_input_size != 4) {
+					printf("Error parsing file.\n");
+					exit(0);
+				}
+				row+=1;
+			}
+
+			//int x, y ;
+			//for(x=0; x < row; x++){
+			//	for(y=0; y<4; y++){
+			//		printf("Test[%d][%d]: %lf\n", x,y,agents[x][y]);
+			//	}
+			//}
+		}	
+	}
+
     char *savename = NULL;
 	if(find_option(argc, argv, "-o") >= 0){
 		savename = read_string( argc, argv, "-o", NULL );
@@ -180,8 +225,7 @@ int main( int argc, char **argv ){
 	if(rank == 0){
 		fprintf(stderr, "%s Drawing %u timesteps\n",MPI_PREPEND, timesteps);
 	}
-    particle_t *particles = (particle_t*) malloc( num_particles * sizeof(particle_t) );
-	
+    particle_t *particles = (particle_t*) malloc( (num_particles + special_agents_count) * sizeof(particle_t) );
 	
 	MPI_Bcast(&map_cfg.height, 1, MPI_UNSIGNED, 0, MPI_COMM_WORLD );
 	MPI_Bcast(&map_cfg.width, 1, MPI_UNSIGNED, 0, MPI_COMM_WORLD );
@@ -216,7 +260,7 @@ int main( int argc, char **argv ){
 	
     int particle_per_proc = (num_particles + n_proc - 1) / n_proc;
 	if(rank == 0){
-		fprintf(stderr, "%s particles: %i\tparticles per proc: %i\n", MPI_PREPEND, num_particles, particle_per_proc);
+		fprintf(stderr, "%s particles: %i\tparticles per proc: %i\n", MPI_PREPEND, (num_particles), particle_per_proc);
 		fflush(stdout);
 	}
 	
@@ -242,7 +286,7 @@ int main( int argc, char **argv ){
     //
     set_size( num_particles, &map_cfg );
     if( rank == 0 ){
-        init_particles( num_particles, particles, &map_cfg );
+        init_particles( num_particles, special_agents_count, agents, particles, &map_cfg );
 	}
 	
 	bool first = true;

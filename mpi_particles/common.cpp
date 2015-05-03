@@ -23,6 +23,7 @@ double width;
 #define cutoff  0.01
 #define min_r   (cutoff/100)
 #define dt      0.0005 // 0.0005
+#define precision 2 // Precision to how close the coordinates should be to goal
 
 #define RANDOM_COLOR true
 
@@ -78,46 +79,71 @@ bool is_valid_location(double x, double y, struct map *map_cfg){
 // Checks to see if you are movning toward goal
 double is_valid_direction_y(double vy, double y, double goal_y)
 {
+	using std::abs;
     //unsigned int highest_dim = MAX(map_cfg->height, map_cfg->width);
 	//double row = (double) floor(y * highest_dim);
 	//double goal = map_cfg->goal_row;
 	
 	//double direction = (goal-row);
-	return goal_y -y;
+	int test = (abs(y - goal_y) < pow(0.1, precision) * fmax(abs(y), abs(goal_y)));
+
+	if(test==0){
+		//printf("y direction: %d\n", sign(goal_y-y));
+		return sign(goal_y-y);
+	} else {
+		return 0;
+	}
 }
 
 // Checks to see if you are movning toward goal
 double is_valid_direction_x(double vx, double x, double goal_x)
 {
+	using std::abs;
 	//unsigned int highest_dim = MAX(map_cfg->height, map_cfg->width);
 	//double col = (double) floor(x * highest_dim);
 	//double goal = map_cfg->goal_col;
 	
 	//double direction = (goal-col);
-	return goal_x-x;
+	int test = (abs(x - goal_x) < pow(0.1, precision) * fmax(abs(x), abs(goal_x)));
+
+	if(test==0){
+		//printf("x direction: %d\n", sign(goal_x-x));
+		return sign(goal_x-x);
+	} else {
+		return 0;
+	}
 }
+
+//int break_check = 0;
 
 bool at_goal(double x, double y, double goal_x, double goal_y)
 {
     using std::abs;
     
-    int n = 2; // Precision to how close the coordinates should be to goal
-    int x_result = abs(x - goal_x) < pow(0.1, n) * fmax(abs(x), abs(goal_x));
-    int y_result = abs(y - goal_y) < pow(0.1, n) * fmax(abs(y), abs(goal_y));
+    int x_result = abs(x - goal_x) < pow(0.1, precision) * fmax(abs(x), abs(goal_x));
+    int y_result = abs(y - goal_y) < pow(0.1, precision) * fmax(abs(y), abs(goal_y));
+
+    /*break_check+=1;
+    if(break_check == 3) {
+    	printf("---------------------------------------------\n");
+    	break_check = 0;
+    }*/
 	
-    return (x_result + y_result);
+    return (x_result & y_result);
 }
 
 
 //
 //  Initialize the particle positions and velocities
 //
-void init_particles( int n, particle_t *p, struct map *map_cfg ){
+void init_particles( int n, int sn, double agents[][4], particle_t *p, struct map *map_cfg ){
 	unsigned int highest_dim = MAX(map_cfg->height, map_cfg->width);
     srand48( time( NULL ) );
 	
 	int sx = (int)ceil(sqrt((double)n));
     int sy = (n+sx-1)/sx;
+
+    int z = 0;
     
     int *shuffle = (int*)malloc( n * sizeof(int) );
     for( int i = 0; i < n; i++ )
@@ -133,11 +159,32 @@ void init_particles( int n, particle_t *p, struct map *map_cfg ){
         
         // compute x/y until they lie inside the walkable area
 		do{
-			p[i].x = drand48() * size; //size*(1.+(k%sx))/(1+sx);
-			p[i].y = drand48() * size; //size*(1.+(k/sx))/(1+sy);
-            p[i].goal_x = drand48() * size;
-            p[i].goal_y = drand48() * size;
-		}while(!is_valid_location(p[i].x, p[i].y, map_cfg));
+			if ( i >= 0) { 
+				//printf("Values: (%lf,%lf,%lf,%lf)\n", agents[z][0], agents[z][1], 
+				//	     agents[z][2], agents[z][3]);
+				p[i].x = agents[z][0]; //size*(1.+(k%sx))/(1+sx);
+				p[i].y = agents[z][1]; //size*(1.+(k/sx))/(1+sy);
+	            p[i].goal_x = agents[z][2];
+	            p[i].goal_y = agents[z][3];
+	            z +=1;
+
+	            if (!is_valid_location(p[i].x, p[i].y, map_cfg)) {
+	            	printf("Error agent location is not valid\n");
+	            	exit(0);
+	            }
+
+	            if(!is_valid_location(p[i].goal_x, p[i].goal_y, map_cfg)) {
+	            	printf("Error agent goal location is not valid\n");
+	            	exit(0);
+	            }
+
+	       } else {
+	        	p[i].x = drand48() * size; //size*(1.+(k%sx))/(1+sx);
+				p[i].y = drand48() * size; //size*(1.+(k/sx))/(1+sy);
+	            p[i].goal_x = drand48() * size;
+	            p[i].goal_y = drand48() * size;
+	        }
+		}while(!is_valid_location(p[i].x, p[i].y, map_cfg) || !is_valid_location(p[i].goal_x, p[i].goal_y, map_cfg));
 		
         //
         //  assign random velocities within a bound
@@ -297,7 +344,14 @@ void move( particle_t &p, struct map *map_cfg ){
 	if(!at_goal(p.x, p.y, p.goal_x, p.goal_y)) {
     	p.x  += p.vx * dt;
     	p.y  += p.vy * dt;
-    }
+    	//printf("x: %f | goal: %f| p.vx: %f\n", p.x, p.goal_x, p.vx );
+    	//printf("y: %f | goal: %f| p.vy: %f\n", p.y, p.goal_y, p.vy );
+    } 
+    //else {
+    //	printf("****Done x: %f | goal: %f| p.vx: %f\n", p.x, p.goal_x, p.vx );
+    //	printf("****Done y: %f | goal: %f| p.vy: %f\n", p.y, p.goal_y, p.vy );
+    //}
+
 
     //
     //  bounce from walls
