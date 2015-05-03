@@ -159,7 +159,7 @@ void init_particles( int n, int sn, double agents[][4], particle_t *p, struct ma
         
         // compute x/y until they lie inside the walkable area
 		do{
-			if ( i >= 0) { 
+			if ( i >= 5) { 
 				//printf("Values: (%lf,%lf,%lf,%lf)\n", agents[z][0], agents[z][1], 
 				//	     agents[z][2], agents[z][3]);
 				p[i].x = agents[z][0]; //size*(1.+(k%sx))/(1+sx);
