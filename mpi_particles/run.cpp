@@ -180,8 +180,10 @@ int main( int argc, char **argv ){
 	int special_agents_count = read_int( argc, argv, "-y", 0);
 	num_particles = num_random_particles + special_agents_count;
 	double agents[special_agents_count][4];
-	fprintf(stderr,"%s total: %i, special: %i, random: %i\n", MPI_PREPEND, num_particles, special_agents_count, num_random_particles);
-
+	if(rank == 0){
+		fprintf(stderr,"%s total: %i, special: %i, random: %i\n", MPI_PREPEND, num_particles, special_agents_count, num_random_particles);
+	}
+	
 	// Do some basic argument checking
 	if(rank == 0 && input_agents && special_agents_count == 0){
 		fprintf(stderr, "Use of agent config requires -y for special agent count\n");
@@ -194,12 +196,12 @@ int main( int argc, char **argv ){
 	}
 	
 	
+	int row = 0;
 	
-	if(input_agents && rank == 0){
-		
+	if(input_agents && rank == 0 && special_agents_count > 0){
+		fprintf(stderr, "here\n");
 		FILE *fp = fopen(input_agents, "r");
-
-		int row = 0;			
+		
 		while ( fgets ( line, sizeof(line), fp ) != NULL && row < special_agents_count ) {
 			//printf("line: %s", line);
 			
@@ -214,11 +216,6 @@ int main( int argc, char **argv ){
 			row++;
 		}
 		
-		if(row != special_agents_count){
-			fprintf(stderr,"Read %i rows, but expected %i special agents.\n", row, special_agents_count);fflush(stderr);
-			exit(0);
-		}
-
 		//int x, y ;
 		//for(x=0; x < row; x++){
 		//	for(y=0; y<4; y++){
@@ -226,6 +223,11 @@ int main( int argc, char **argv ){
 		//	}
 		//}
 		fclose(fp);
+	}
+	
+	if(rank == 0 && row != special_agents_count){
+		fprintf(stderr,"Read %i rows, but expected %i special agents.\n", row, special_agents_count);fflush(stderr);
+		exit(0);
 	}
 
     char *savename = NULL;
@@ -303,6 +305,7 @@ int main( int argc, char **argv ){
     //  initialize and distribute the particles
     //
     set_size( num_particles, &map_cfg );
+	
     if( rank == 0 ){
         init_particles( num_particles, special_agents_count, agents, particles, &map_cfg );
 	}
@@ -318,7 +321,7 @@ int main( int argc, char **argv ){
 	double now = glfwGetTime();
 	
     MPI_Scatterv( particles, partition_sizes, partition_offsets, PARTICLE, local, nlocal, PARTICLE, 0, MPI_COMM_WORLD );
-
+	
     //
     //  simulate a number of time steps
     //

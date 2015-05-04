@@ -158,7 +158,9 @@ void init_particles( int n, int sn, double agents[][4], particle_t *p, struct ma
         shuffle[j] = shuffle[n-i-1];
         
         // compute x/y until they lie inside the walkable area
+		bool is_random = false;
 		do{
+			is_random = false;
 			if ( i < sn) {
 				// only do up to sn number of agents, else random start and goal
 				
@@ -183,20 +185,32 @@ void init_particles( int n, int sn, double agents[][4], particle_t *p, struct ma
 	       } else {
 	        	p[i].x = drand48() * size; //size*(1.+(k%sx))/(1+sx);
 				p[i].y = drand48() * size; //size*(1.+(k/sx))/(1+sy);
-	            p[i].goal_x = drand48() * size;
-	            p[i].goal_y = drand48() * size;
+	            p[i].goal_x = -1; //drand48() * size;
+	            p[i].goal_y = -1; //drand48() * size;
+				is_random = true;
 	        }
-		}while(!is_valid_location(p[i].x, p[i].y, map_cfg) || !is_valid_location(p[i].goal_x, p[i].goal_y, map_cfg));
+		}while(!is_valid_location(p[i].x, p[i].y, map_cfg) || (!is_random && !is_valid_location(p[i].goal_x, p[i].goal_y, map_cfg)));
 		
         //
         //  assign random velocities within a bound
-        p[i].vx = (drand48() * 2.0) + 1.0;
-        p[i].vy = (drand48() * 2.0) + 1.0;
+		p[i].vx = (drand48() * 2.0);
+		p[i].vy = (drand48() * 2.0);
+		if(is_random){
+			// shift so it's randomly over -1 to 1
+			p[i].vx -= 1.0;
+			p[i].vx -= 1.0;
 
-        double x_direction = is_valid_direction_x(p[i].vx, p[i].x, p[i].goal_x);
-    	double y_direction = is_valid_direction_y(p[i].vy, p[i].y, p[i].goal_y);
-    	p[i].vx *= sign(x_direction);
-        p[i].vy *= sign(y_direction);
+		}else{
+			// shift so it's over 1 to 3 (bit faster)
+			p[i].vx += 1.0;
+			p[i].vy += 1.0;
+			double x_direction = is_valid_direction_x(p[i].vx, p[i].x, p[i].goal_x);
+			double y_direction = is_valid_direction_y(p[i].vy, p[i].y, p[i].goal_y);
+			
+			// make it move in the right direction
+			p[i].vx *= sign(x_direction);
+			p[i].vy *= sign(y_direction);
+		}
 		
 		// set color:
 		p[i].color_r = RANDOM_COLOR ? drand48() : 0.0;
