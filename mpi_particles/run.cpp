@@ -11,7 +11,7 @@
 
 
 void usage(){
-	printf( "Example run: mpirun -np 2 ./run -p 20 -o stdout | ./run -i stdin\n\n");
+	printf( "Example run: mpirun -np 4 ./run -p 20 -o stdout | ./run -i stdin\n\n");
 	printf( "Options:\n" );
 	printf( "-h                        : this text\n" );
 	printf( "\nOptions for particle simulator:\n");
@@ -32,6 +32,7 @@ void usage(){
 	printf( "-c <filename> : Use map config, defaults to map.cfg (plain old square). Visualizer uses this to draw walls around points.\n");
 	
 	printf("\n\nEither -o (simulator) or -i (visualizer) must be set.\n");
+	printf("\n\nSimulator requires power-of-4 cores (1, 4, 16, etc) for area subdivision.\n");
 	
 }
 
@@ -109,6 +110,21 @@ void read_map(FILE *fp, struct map *map_cfg){
 }
 
 
+bool isPowerOfFour(int n){
+	// borrowed from http://www.geeksforgeeks.org/find-whether-a-given-number-is-a-power-of-4-or-not/
+	if(n == 0){
+		return 0;
+	}
+	while(n != 1){
+		if(n%4 != 0){
+			return 0;
+		}
+		n = n/4;
+	}
+	return 1;
+}
+
+
 int main( int argc, char **argv ){
 
     if( find_option( argc, argv, "-h" ) >= 0 ){
@@ -165,6 +181,14 @@ int main( int argc, char **argv ){
 	}
 	
 	// Won't get here if '-i' is provided.
+	
+	if(rank == 0){
+		if(!isPowerOfFour(n_proc)){
+			fprintf(stderr, "Must use a power-of-four number of cores (1, 4, 16, etc) for subdivision\n");
+			usage();
+			exit(0);
+		}
+	}
 	
 	// Read in the special agents
 	char *input_agents = NULL;
