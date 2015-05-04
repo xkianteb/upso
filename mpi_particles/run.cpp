@@ -13,14 +13,15 @@
 void usage(){
 	printf( "Example run: mpirun -np 2 ./run -p 20 -o stdout | ./run -i stdin\n\n");
 	printf( "Options:\n" );
-	printf( "-h            : this text\n" );
+	printf( "-h                        : this text\n" );
 	printf( "\nOptions for particle simulator:\n");
-	printf( "-p <int>      : set the number of particles (default 2)\n" );
-	printf( "-o <filename> : specify the output file name for logging instead of drawing 3d (can be \"stdout\" for stdout)\n" );
-	printf( "-t <int>      : set the number of timesteps to calculate, default infinite, but %u with -o present\n", NSTEPS );
-	printf( "-c <filename> : Use map config for simulator, defaults to map.cfg (plain old square).\n");
-	printf( "-x <filename> : Load particle starting configuration.\n");
-	printf( "-y <agents number> : Number of agents in the -p file.\n");
+	printf( "-p <filename>             : Read particle config\n" );
+	printf( "-o <filename>             : specify the output file name for logging instead of drawing 3d (can be \"stdout\" for stdout)\n" );
+	printf( "-t <int>                  : set the number of timesteps to calculate, default infinite, but %u with -o present\n", NSTEPS );
+	printf( "-c <filename>             : Use map config for simulator, defaults to map.cfg (plain old square).\n");
+	printf( "-x <filename>	           : Load particle starting configuration.\n");
+	printf( "-y <agents number>        : Number of agents in the -p file.\n");
+	printf( "-r <random agents number> : Number of additional random agents to generate (default 2).\n");
 
 	printf( "\nOptions for OpenGL Visualizer:\n");
 	printf( "-s <int>      : Frame skip, skips <int> frames every draw. Will speed up simulation visualization.\n");
@@ -165,8 +166,7 @@ int main( int argc, char **argv ){
 	
 	// Won't get here if '-i' is provided.
 	
-    //num_particles = read_int( argc, argv, "-p", 2 );
-	num_particles = 0;
+    int num_random_particles = read_int( argc, argv, "-r", 0);
 	
 	// Read in the special agents
 	char *input_agents = NULL;
@@ -178,37 +178,54 @@ int main( int argc, char **argv ){
 	double t1=0.0, t2=0.0, t3=0.0, t4=0.0;
 
 	int special_agents_count = read_int( argc, argv, "-y", 0);
-	num_particles += special_agents_count;
+	num_particles = num_random_particles + special_agents_count;
 	double agents[special_agents_count][4];
+	fprintf(stderr,"%s total: %i, special: %i, random: %i\n", MPI_PREPEND, num_particles, special_agents_count, num_random_particles);
 
+	// Do some basic argument checking
+	if(rank == 0 && input_agents && special_agents_count == 0){
+		fprintf(stderr, "Use of agent config requires -y for special agent count\n");
+		usage();
+		exit(1);
+	}else if(rank == 0 && special_agents_count > 0 && !input_agents){
+		fprintf(stderr, "Special agent count requires agent config via -p\n");
+		usage();
+		exit(1);
+	}
+	
+	
+	
+	if(input_agents && rank == 0){
+		
+		FILE *fp = fopen(input_agents, "r");
 
-	if(input_agents) {
+		int row = 0;			
+		while ( fgets ( line, sizeof(line), fp ) != NULL && row < special_agents_count ) {
+			//printf("line: %s", line);
+			
+			char * pch = strtok (line," ");
+			int agent_input_size = sscanf(pch, "%lf,%lf,%lf,%lf", &agents[row][0], &agents[row][1], 
+				   &agents[row][2], &agents[row][3]);
 
-		if(rank == 0){ 
-			FILE *fp = fopen(input_agents, "r");
-
-			int row = 0;			
-			while ( fgets ( line, sizeof(line), fp ) != NULL ) {
-				//printf("line: %s", line);
-				
-				char * pch = strtok (line," ");
-				int agent_input_size = sscanf(pch, "%lf,%lf,%lf,%lf", &agents[row][0], &agents[row][1], 
-					   &agents[row][2], &agents[row][3]);
-
-				if (agent_input_size != 4) {
-					printf("Error parsing file.\n");
-					exit(0);
-				}
-				row+=1;
+			if (agent_input_size != 4) {
+				printf("Error parsing file.\n");
+				exit(0);
 			}
+			row++;
+		}
+		
+		if(row != special_agents_count){
+			fprintf(stderr,"Read %i rows, but expected %i special agents.\n", row, special_agents_count);fflush(stderr);
+			exit(0);
+		}
 
-			//int x, y ;
-			//for(x=0; x < row; x++){
-			//	for(y=0; y<4; y++){
-			//		printf("Test[%d][%d]: %lf\n", x,y,agents[x][y]);
-			//	}
-			//}
-		}	
+		//int x, y ;
+		//for(x=0; x < row; x++){
+		//	for(y=0; y<4; y++){
+		//		printf("Test[%d][%d]: %lf\n", x,y,agents[x][y]);
+		//	}
+		//}
+		fclose(fp);
 	}
 
     char *savename = NULL;
@@ -225,7 +242,7 @@ int main( int argc, char **argv ){
 	if(rank == 0){
 		fprintf(stderr, "%s Drawing %u timesteps\n",MPI_PREPEND, timesteps);
 	}
-    particle_t *particles = (particle_t*) malloc( (num_particles + special_agents_count) * sizeof(particle_t) );
+    particle_t *particles = (particle_t*) malloc( num_particles * sizeof(particle_t) );
 	
 	MPI_Bcast(&map_cfg.height, 1, MPI_UNSIGNED, 0, MPI_COMM_WORLD );
 	MPI_Bcast(&map_cfg.width, 1, MPI_UNSIGNED, 0, MPI_COMM_WORLD );

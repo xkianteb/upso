@@ -159,7 +159,9 @@ void init_particles( int n, int sn, double agents[][4], particle_t *p, struct ma
         
         // compute x/y until they lie inside the walkable area
 		do{
-			if ( i >= 5) { 
+			if ( i < sn) {
+				// only do up to sn number of agents, else random start and goal
+				
 				//printf("Values: (%lf,%lf,%lf,%lf)\n", agents[z][0], agents[z][1], 
 				//	     agents[z][2], agents[z][3]);
 				p[i].x = agents[z][0]; //size*(1.+(k%sx))/(1+sx);
@@ -169,12 +171,12 @@ void init_particles( int n, int sn, double agents[][4], particle_t *p, struct ma
 	            z +=1;
 
 	            if (!is_valid_location(p[i].x, p[i].y, map_cfg)) {
-	            	printf("Error agent location is not valid\n");
+	            	fprintf(stderr,"Error agent location is not valid for agent %i: (%lf,%lf)\n", i, p[i].x,p[i].y);
 	            	exit(0);
 	            }
 
 	            if(!is_valid_location(p[i].goal_x, p[i].goal_y, map_cfg)) {
-	            	printf("Error agent goal location is not valid\n");
+	            	fprintf(stderr,"Error agent goal location is not valid for agent %i: (%lf,%lf)\n", i, p[i].x,p[i].y);
 	            	exit(0);
 	            }
 
