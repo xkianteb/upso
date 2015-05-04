@@ -269,7 +269,7 @@ int draw_data(FILE *fp, bool from_stdin, unsigned int frame_skip, struct map *ma
 	double scale = 1;
 	scale_points(points, num_particles, &scale, &radius, size, actual_size, true);
 	
-	Vec<3> current_points[num_particles];
+	Vec<3> *current_points = (Vec<3> *) malloc(num_particles * sizeof(Vec<3>));
 	unsigned int i = 0;
 	
 	
