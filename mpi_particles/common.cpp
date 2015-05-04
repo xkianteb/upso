@@ -198,7 +198,7 @@ void init_particles( int n, int sn, double agents[][4], particle_t *p, struct ma
 		if(is_random){
 			// shift so it's randomly over -1 to 1
 			p[i].vx -= 1.0;
-			p[i].vx -= 1.0;
+			p[i].vy -= 1.0;
 
 		}else{
 			// shift so it's over 1 to 3 (bit faster)
