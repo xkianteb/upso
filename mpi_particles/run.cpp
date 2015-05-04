@@ -21,7 +21,7 @@ void usage(){
 	printf( "-c <filename>             : Use map config for simulator, defaults to map.cfg (plain old square).\n");
 	printf( "-x <filename>	           : Load particle starting configuration.\n");
 	printf( "-y <agents number>        : Number of agents in the -p file.\n");
-	printf( "-r <random agents number> : Number of additional random agents to generate (default 2).\n");
+	printf( "-r <random agents number> : Number of additional random agents to generate (default 2 if no -y arg).\n");
 
 	printf( "\nOptions for OpenGL Visualizer:\n");
 	printf( "-s <int>      : Frame skip, skips <int> frames every draw. Will speed up simulation visualization.\n");
@@ -166,13 +166,14 @@ int main( int argc, char **argv ){
 	
 	// Won't get here if '-i' is provided.
 	
-    int num_random_particles = read_int( argc, argv, "-r", 0);
-	
 	// Read in the special agents
 	char *input_agents = NULL;
 	if(find_option(argc, argv, "-p") >= 0){
 		input_agents = read_string( argc, argv, "-p", NULL );
 	}
+	
+    int num_random_particles = read_int( argc, argv, "-r", (input_agents ? 0 : 2));
+	
 	
 	char line [ 256 ];
 	double t1=0.0, t2=0.0, t3=0.0, t4=0.0;
