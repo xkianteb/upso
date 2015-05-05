@@ -12,7 +12,7 @@
 #define SEND_INITIAL_PARTICLE_COUNT 100
 #define SEND_INITIAL_PARTICLES 101
 
-
+#define GHOST_ZONE_PADDING 0.1
 
 void usage(){
 	printf( "Example run: mpirun -np 4 ./run -p 20 -o stdout | ./run -i stdin\n\n");
@@ -199,6 +199,7 @@ int main( int argc, char **argv ){
 		int sqrt_proc = sqrt(n_proc);
 		double range = 1.0 / sqrt_proc; // this makes it easy with 4 cores, just keep making squares (rectangles aren't AS easy)
 		int core = 0;
+		fprintf(stderr, "%s layout: \n", MPI_PREPEND);
 		for(int row = 0; row < sqrt_proc; row++){
 			
 			for(int col = 0; col < sqrt_proc; col++){
@@ -207,18 +208,40 @@ int main( int argc, char **argv ){
 				areas[core].max_x = col * range + range;
 				areas[core].min_y = row * range;
 				areas[core].max_y = row * range + range;
-			
+				
+				fprintf(stderr, "\t%i", core);
 				core++;
 			}
-		
+			fprintf(stderr, "\n");
 		}
+		
+		// tests
+		
+//		fprintf(stderr,"test: %i -0.1\n", rank_for_location(-0.1, -0.1, n_proc, areas));
+//		fprintf(stderr,"test: %i\n", rank_for_location(0.0, 0.1, n_proc, areas));
+//		fprintf(stderr,"test: %i\n", rank_for_location(0.1, 0.1, n_proc, areas));
+//		fprintf(stderr,"test: %i\n", rank_for_location(0.2, 0.1, n_proc, areas));
+//		fprintf(stderr,"test: %i\n", rank_for_location(0.3, -0.1, n_proc, areas));
+//		fprintf(stderr,"test: %i 0.4\n", rank_for_location(0.4, 0.1, n_proc, areas));
+//		fprintf(stderr,"test: %i 0.5\n", rank_for_location(0.5, -0.1, n_proc, areas));
+//		fprintf(stderr,"test: %i 0.6\n", rank_for_location(0.6, 0.1, n_proc, areas));
+//		fprintf(stderr,"test: %i\n", rank_for_location(0.7, 0.1, n_proc, areas));
+//		fprintf(stderr,"test: %i\n", rank_for_location(0.8, -0.1, n_proc, areas));
+//		fprintf(stderr,"test: %i 0.9\n", rank_for_location(0.9, 0.1, n_proc, areas));
+//		fprintf(stderr,"test: %i 1\n", rank_for_location(1.0, 0.1, n_proc, areas));
+//		fprintf(stderr,"test: %i 1.1\n", rank_for_location(1.1, -0.1, n_proc, areas));
+		
 	}
+	
 	//MPI_Scatter(areas, 4, MPI_DOUBLE, &my_area, 4, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 	MPI_Bcast(areas, 4 * n_proc, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 	
 	struct subdivision *my_area = &(areas[rank]);
 	fprintf(stderr, "%s Assigning rank %i to (%lf, %lf), (%lf, %lf)\n",MPI_PREPEND, rank, my_area->min_x, my_area->min_y, my_area->max_x, my_area->max_y);
 	
+//	MPI_Barrier(MPI_COMM_WORLD);
+	
+//	exit(0);
 	
 	// Read in the special agents
 	char *input_agents = NULL;
@@ -352,7 +375,7 @@ int main( int argc, char **argv ){
 		particle_t *batches[n_proc];
 		// figure out what particles belong to what cores
 		for(int i = 0; i < n_proc; i++){
-			// making room for enough for each core to receive ALL particles. Definitely overshooting, but it'll work
+			// making room for enough for each core to receive ALL particles. Definitely overshooting, but it'll work later on when things are shared
 			batches[i] = (particle_t *) malloc(num_particles * sizeof(particle_t));
 			counts[i] = 0;
 		}
@@ -382,14 +405,14 @@ int main( int argc, char **argv ){
 		
 	}else{
 		MPI_Recv(&local_count, 1, MPI_INT, 0, SEND_INITIAL_PARTICLE_COUNT, MPI_COMM_WORLD, &status);
-		local = (particle_t*) malloc( local_count * sizeof(particle_t) );
+		local = (particle_t*) malloc( num_particles * sizeof(particle_t) );
 		
 		MPI_Recv(local, local_count, PARTICLE, 0, SEND_INITIAL_PARTICLES, MPI_COMM_WORLD, &status);
 	}
 	
 	fprintf(stderr, "%s Rank %i got %i particles out of %i\n", MPI_PREPEND, rank, local_count, num_particles);
 	if(local_count > 0){
-		fprintf(stderr, "%s Rank %i point 0: (%lf, %lf)\n", MPI_PREPEND, rank, local[0].x, local[0].y);
+		fprintf(stderr, "%s Rank %i point 0: (%lf, %lf) (of %i)\n", MPI_PREPEND, rank, local[0].x, local[0].y, local_count);
 	}
 	
 	
@@ -412,17 +435,35 @@ int main( int argc, char **argv ){
     //
     double simulation_time = read_timer( );
 	struct minimum_particle *minimum_particles = (struct minimum_particle *) malloc (num_particles * sizeof(struct minimum_particle));
+	
+	int nearby_core;
+	int t, temp;
+	particle_t *local_temp = (particle_t *) malloc (num_particles * sizeof(particle_t));
+	particle_t *another_temp;
+	
+	int num_directions = 8;  // up, down, left, right, upleft, upright, downleft, downright
+	int directions[num_directions];
+	memset(directions, -1, num_directions);
+	
+	particle_t *to_send[n_proc];
+	int to_send_counts[n_proc];
+	for(int i = 0; i < n_proc; i++){
+		to_send[i] = NULL;
+		to_send_counts[i] = 0;
+	}
+	
+	
     for( int step = 0; !timesteps || step < timesteps; step++ ){
 		
 		//
-		//  compute all fnum_particlesrces
+		//  compute all forces
 		//
 		for( int i = 0; i < local_count; i++ ){
 			local[i].ax = local[i].ay = 0;
 		}
 		for( int i = 0; i < local_count-1; i++ ){
 			for (int j = i+1; j < local_count; j++ ){
-				fprintf(stderr,"%s rank %i computing between %i and %i\n", MPI_PREPEND, rank, i, j);
+				fprintf(stderr,"%s rank %i computing between %i and %i of %i\n", MPI_PREPEND, rank, i, j, local_count);
 				apply_force( local[i], local[j] );
 			}
 		}
@@ -434,9 +475,28 @@ int main( int argc, char **argv ){
 		//
 		//  move particles
 		//
+		t = 0;
+		//fprintf(stderr, "%s rank %i starting with local_count at %i\n", MPI_PREPEND, rank, local_count);
 		for( int i = 0; i < local_count; i++ ){
 			move( local[i], &map_cfg );
 			
+			// check if this core should forget about this particle now.
+			temp = rank_for_location(local[i].x, local[i].y, n_proc, areas);
+			if(temp != rank){
+				//fprintf(stderr,"%s rank %i forgot particle %i, at (%lf, %lf)\n", MPI_PREPEND, rank, i, local[i].x,local[i].y);
+			}else{
+				memcpy(&local_temp[t], &local[i], sizeof(particle_t));
+				t++;
+			}
+		}
+		
+		//swap pointers, since we now have a condensed local_temp list of things to care about (no extra mallocing)
+		another_temp = local;
+		local = local_temp;
+		local_temp = another_temp;
+		
+		local_count = t;
+		for(int i = 0; i < local_count; i++){
 			minimum_particles[i].x = local[i].x;
 			minimum_particles[i].y = local[i].y;
 			minimum_particles[i].color_r = local[i].color_r;
@@ -462,6 +522,123 @@ int main( int argc, char **argv ){
 			save( fsave, num_particles, minimum_particles, &map_cfg );
 		}
 		
+		
+		// find particles nearby other cores:
+		bool up = false, down = false, left = false, right = false;
+		int recipient;
+		for( int i = 0; i < local_count; i++ ){
+			memset(directions, -1, num_directions * sizeof(int));
+			
+			// moving right:
+			if(my_area->max_x - local[i].x < GHOST_ZONE_PADDING){
+				right = true;
+				directions[0] = rank_for_location(local[i].x + GHOST_ZONE_PADDING, local[i].y, n_proc, areas);
+			}
+			
+			// moving left
+			if(local[i].x - my_area->min_x < GHOST_ZONE_PADDING){
+				left = true;
+				directions[1] = rank_for_location(local[i].x - GHOST_ZONE_PADDING, local[i].y, n_proc, areas);
+			}
+			
+			// moving up
+			if(my_area->max_y - local[i].y < GHOST_ZONE_PADDING){
+				up = true;
+				directions[2] = rank_for_location(local[i].x, local[i].y + GHOST_ZONE_PADDING, n_proc, areas);
+			}
+			
+			// moving down
+			if(local[i].y - my_area->min_y < GHOST_ZONE_PADDING){
+				down = true;
+				directions[3] = rank_for_location(local[i].x, local[i].y - GHOST_ZONE_PADDING, n_proc, areas);
+			}
+			
+			// moving up-right:
+			if(up && right){
+				directions[4] = rank_for_location(local[i].x + GHOST_ZONE_PADDING, local[i].y + GHOST_ZONE_PADDING, n_proc, areas);
+			}
+			
+			// moving up-left
+			if(up && left){
+				directions[5] = rank_for_location(local[i].x - GHOST_ZONE_PADDING, local[i].y + GHOST_ZONE_PADDING, n_proc, areas);
+			}
+			
+			// moving down-right:
+			if(down && right){
+				directions[6] = rank_for_location(local[i].x + GHOST_ZONE_PADDING, local[i].y - GHOST_ZONE_PADDING, n_proc, areas);
+			}
+			
+			// moving down-left
+			if(down && left){
+				directions[7] = rank_for_location(local[i].x - GHOST_ZONE_PADDING, local[i].y - GHOST_ZONE_PADDING, n_proc, areas);
+			}
+			
+			int sent_to[n_proc];
+			memset(sent_to, 0, n_proc * sizeof(int));
+			for(int j = 0; j < num_directions; j++){
+				recipient = directions[j];
+				if(recipient == -1 || recipient == rank || sent_to[recipient]){
+					continue;
+				}
+				// ensure each core only gets one copy at worst
+				sent_to[recipient] = 1;
+				
+				if(to_send[recipient] == NULL){
+					// if i CAN send to rank t, make room for stuff.
+					to_send[recipient] = (particle_t *) malloc(local_count * sizeof(particle_t));
+				}
+				//fprintf(stderr, "%s rank %i sending (%lf,%lf) direction %i to recipient %i\n", MPI_PREPEND, rank, local[i].x, local[i].y, j, recipient);
+				memcpy(&to_send[recipient][to_send_counts[recipient]], &local[i], sizeof(particle_t));
+				to_send_counts[recipient]++;
+			}
+		}
+		
+		// send stuff around
+		
+		int to_receive[n_proc];
+		memset(to_receive, 0, n_proc * sizeof(int));
+		MPI_Request recv_request[n_proc];
+		MPI_Request particle_recv_request[n_proc];
+		for(int i = 0; i < n_proc; i++){
+			// Set up receives first, then sends
+			
+			MPI_Irecv(&to_receive[i], 1, MPI_INT, i, SEND_INITIAL_PARTICLE_COUNT, MPI_COMM_WORLD, &recv_request[i]);
+		}
+		for(int i = 0; i < n_proc; i++){
+			MPI_Send(&to_send_counts[i], 1, MPI_INT, i, SEND_INITIAL_PARTICLE_COUNT, MPI_COMM_WORLD);
+			if(to_send_counts[i] > 0){
+				fprintf(stderr, "%s rank %i prepping to send %i to %i\n", MPI_PREPEND, rank, to_send_counts[i], i);fflush(stderr);
+			}
+		}
+		
+		for(int i = 0; i < n_proc; i++){
+			if(to_receive[i] > 0){
+				MPI_Irecv(& (local[local_count]), to_receive[i], PARTICLE, i, SEND_INITIAL_PARTICLES, MPI_COMM_WORLD, &particle_recv_request[i] );
+				fprintf(stderr, "%s rank %i prepping to receive %i from %i\n", MPI_PREPEND, rank, to_receive[i], i);fflush(stderr);
+				local_count += to_receive[i];
+			}
+		}
+		
+		for(int i = 0; i < n_proc; i++){
+			if(to_send_counts[i] > 0){
+				MPI_Send(to_send[i], to_send_counts[i], PARTICLE, i, SEND_INITIAL_PARTICLES, MPI_COMM_WORLD);
+				fprintf(stderr, "%s rank %i sent %i to %i, (%lf,%lf)\n", MPI_PREPEND, rank, to_send_counts[i], i, to_send[i][0].x, to_send[i][0].y);fflush(stderr);
+			}
+		}
+		MPI_Barrier(MPI_COMM_WORLD);
+		
+		if(local_count > 0){
+			fprintf(stderr, "%s rank %i newest: (%lf,%lf)\n", MPI_PREPEND, rank, local[local_count-1].x, local[local_count-1].y);fflush(stderr);
+		}
+		// reset buffers
+		for(int i = 0; i < n_proc; i++){
+			if(to_send[i]){
+				free(to_send[i]);
+				to_send[i] = NULL;
+			}
+			to_send_counts[i] = 0;
+		}
+		//fprintf(stderr,"%s Rank %i finished %i\n",MPI_PREPEND, rank, step);
     }
     simulation_time = read_timer( ) - simulation_time;
     

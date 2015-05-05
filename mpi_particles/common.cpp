@@ -133,10 +133,22 @@ bool at_goal(double x, double y, double goal_x, double goal_y)
 }
 
 int rank_for_location(double x, double y, int n_proc, struct subdivision *areas){
+	bool inside_x = false, inside_y = false, below_min_x = false, below_min_y = false, above_max_x = false, above_max_y = false;
 	for(int i = 0; i < n_proc; i++){
-		if(areas[i].min_x <= x && x < areas[i].max_x && areas[i].min_y <= y && y < areas[i].max_y){
+		inside_x = (areas[i].min_x <= x && x < areas[i].max_x);
+		inside_y = (areas[i].min_y <= y && y < areas[i].max_y);
+		
+		below_min_x = (areas[i].min_x == 0 && x <= 0 );
+		below_min_y = (areas[i].min_y == 0 && y <= 0 );
+		
+		above_max_x = (areas[i].max_x == 1 && x >= 1 );
+		above_max_y = (areas[i].max_y == 1 && y >= 1 );
+	
+		if((inside_x && inside_y) || (inside_x && below_min_y) || (inside_x && above_max_y) || (inside_y && below_min_x) || (inside_y && above_max_x) || (below_min_x && below_min_y) || (above_max_x && above_max_y) || (below_min_x && above_max_y) || (below_min_y && above_max_x)){
 			return i;
 		}
+		
+		
 	}
 	// error, couldn't find location
 	return -1;
