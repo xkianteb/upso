@@ -463,7 +463,7 @@ int main( int argc, char **argv ){
 		}
 		for( int i = 0; i < local_count-1; i++ ){
 			for (int j = i+1; j < local_count; j++ ){
-				fprintf(stderr,"%s rank %i computing between %i and %i of %i\n", MPI_PREPEND, rank, i, j, local_count);
+				//fprintf(stderr,"%s rank %i computing between %i and %i of %i\n", MPI_PREPEND, rank, i, j, local_count);
 				apply_force( local[i], local[j] );
 			}
 		}
@@ -526,6 +526,7 @@ int main( int argc, char **argv ){
 		// find particles nearby other cores:
 		bool up = false, down = false, left = false, right = false;
 		int recipient;
+		memset(to_send_counts, 0, n_proc * sizeof(int));
 		for( int i = 0; i < local_count; i++ ){
 			memset(directions, -1, num_directions * sizeof(int));
 			
@@ -594,41 +595,42 @@ int main( int argc, char **argv ){
 		}
 		
 		// send stuff around
-		
+		int received = 0;
 		int to_receive[n_proc];
 		memset(to_receive, 0, n_proc * sizeof(int));
 		MPI_Request recv_request[n_proc];
 		MPI_Request particle_recv_request[n_proc];
 		for(int i = 0; i < n_proc; i++){
 			// Set up receives first, then sends
-			
 			MPI_Irecv(&to_receive[i], 1, MPI_INT, i, SEND_INITIAL_PARTICLE_COUNT, MPI_COMM_WORLD, &recv_request[i]);
 		}
 		for(int i = 0; i < n_proc; i++){
 			MPI_Send(&to_send_counts[i], 1, MPI_INT, i, SEND_INITIAL_PARTICLE_COUNT, MPI_COMM_WORLD);
 			if(to_send_counts[i] > 0){
-				fprintf(stderr, "%s rank %i prepping to send %i to %i\n", MPI_PREPEND, rank, to_send_counts[i], i);fflush(stderr);
+				//fprintf(stderr, "%s rank %i prepping to send %i to %i\n", MPI_PREPEND, rank, to_send_counts[i], i);fflush(stderr);
 			}
 		}
+		MPI_Barrier(MPI_COMM_WORLD);
 		
 		for(int i = 0; i < n_proc; i++){
 			if(to_receive[i] > 0){
 				MPI_Irecv(& (local[local_count]), to_receive[i], PARTICLE, i, SEND_INITIAL_PARTICLES, MPI_COMM_WORLD, &particle_recv_request[i] );
-				fprintf(stderr, "%s rank %i prepping to receive %i from %i\n", MPI_PREPEND, rank, to_receive[i], i);fflush(stderr);
+				//fprintf(stderr, "%s rank %i prepping to receive %i from %i\n", MPI_PREPEND, rank, to_receive[i], i);fflush(stderr);
 				local_count += to_receive[i];
+				received += to_receive[i];
 			}
 		}
 		
 		for(int i = 0; i < n_proc; i++){
 			if(to_send_counts[i] > 0){
 				MPI_Send(to_send[i], to_send_counts[i], PARTICLE, i, SEND_INITIAL_PARTICLES, MPI_COMM_WORLD);
-				fprintf(stderr, "%s rank %i sent %i to %i, (%lf,%lf)\n", MPI_PREPEND, rank, to_send_counts[i], i, to_send[i][0].x, to_send[i][0].y);fflush(stderr);
+				//fprintf(stderr, "%s rank %i sent %i to %i, (%lf,%lf)\n", MPI_PREPEND, rank, to_send_counts[i], i, to_send[i][0].x, to_send[i][0].y);fflush(stderr);
 			}
 		}
 		MPI_Barrier(MPI_COMM_WORLD);
 		
-		if(local_count > 0){
-			fprintf(stderr, "%s rank %i newest: (%lf,%lf)\n", MPI_PREPEND, rank, local[local_count-1].x, local[local_count-1].y);fflush(stderr);
+		if(received > 0){
+			//fprintf(stderr, "%s rank %i newest: (%lf,%lf)\n", MPI_PREPEND, rank, local[local_count-1].x, local[local_count-1].y);fflush(stderr);
 		}
 		// reset buffers
 		for(int i = 0; i < n_proc; i++){
@@ -636,7 +638,6 @@ int main( int argc, char **argv ){
 				free(to_send[i]);
 				to_send[i] = NULL;
 			}
-			to_send_counts[i] = 0;
 		}
 		//fprintf(stderr,"%s Rank %i finished %i\n",MPI_PREPEND, rank, step);
     }
