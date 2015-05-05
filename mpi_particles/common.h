@@ -8,6 +8,7 @@
 #define MAX(a,b) (a > b ? a : b)
 
 inline int sign(double x) {return (x > 0) ? 1 : ((x < 0) ? -1 : 0);}
+int rank_for_location(double x, double y, int n_proc, struct subdivision *areas);
 
 struct subdivision{
 	double min_x;
@@ -51,6 +52,14 @@ typedef struct
   double color_b;
 } particle_t;
 
+struct minimum_particle{
+	double x;
+	double y;
+	double color_r;
+	double color_g;
+	double color_b;
+};
+
 //
 //  timing routines
 //
@@ -69,7 +78,7 @@ void move( particle_t &p, struct map *map_cfg );
 //  I/O routines
 //
 FILE *open_save( char *filename, int n );
-void save( FILE *f, int n, particle_t *p, struct map *map_cfg );
+void save( FILE *f, int n, struct minimum_particle *p, struct map *map_cfg );
 
 //
 //  argument processing routines

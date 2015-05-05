@@ -132,6 +132,15 @@ bool at_goal(double x, double y, double goal_x, double goal_y)
     return (x_result & y_result);
 }
 
+int rank_for_location(double x, double y, int n_proc, struct subdivision *areas){
+	for(int i = 0; i < n_proc; i++){
+		if(areas[i].min_x <= x && x < areas[i].max_x && areas[i].min_y <= y && y < areas[i].max_y){
+			return i;
+		}
+	}
+	// error, couldn't find location
+	return -1;
+}
 
 //
 //  Initialize the particle positions and velocities
@@ -246,6 +255,9 @@ void apply_force( particle_t &particle, particle_t &neighbor )
 	double max_speedup = 1000.0;
     particle.ax += sign(coef * dx) * MIN(max_speedup, fabs(coef*dx));
     particle.ay += sign(coef * dy) * MIN(max_speedup, fabs(coef*dy));
+	
+	neighbor.ax -= sign(coef * dx) * MIN(max_speedup, fabs(coef*dx));
+	neighbor.ay -= sign(coef * dy) * MIN(max_speedup, fabs(coef*dy));
 }
 
 unsigned int cell_for_pos(double x, double y, struct map *map_cfg){
@@ -419,7 +431,7 @@ void move( particle_t &p, struct map *map_cfg ){
 //
 //  I/O routines
 //
-void save( FILE *f, int n, particle_t *p, struct map *map_cfg ){
+void save( FILE *f, int n, struct minimum_particle *p, struct map *map_cfg ){
 
 	double velocity = 0.0;
     static bool first = true;
@@ -434,12 +446,7 @@ void save( FILE *f, int n, particle_t *p, struct map *map_cfg ){
 		}
 		
         fprintf( f, "p %g %g\n", p[i].x, p[i].y );
-		
-		velocity += fabs(p[i].vx) + fabs(p[i].vy);
 	}
-	
-	// For monitoring overall velocity speeds.
-	//fprintf(stderr, "Vel: %lf\n",velocity);fflush(stderr);
 	
 	first = false;
 	fflush(f);

@@ -9,6 +9,10 @@
 
 #define TIMESTAMPS 10000
 
+#define SEND_INITIAL_PARTICLE_COUNT 100
+#define SEND_INITIAL_PARTICLES 101
+
+
 
 void usage(){
 	printf( "Example run: mpirun -np 4 ./run -p 20 -o stdout | ./run -i stdin\n\n");
@@ -123,7 +127,6 @@ bool isPowerOfFour(int n){
 	}
 	return 1;
 }
-
 
 int main( int argc, char **argv ){
 
@@ -310,57 +313,87 @@ int main( int argc, char **argv ){
 	}
 	
 	
-	
-    //
-    //  allocate generic resources
-    //
-    FILE *fsave = savename && rank == 0 ? (write_to_stdout ? stdout : fopen( savename, "w" )) : NULL;
-    
-    MPI_Datatype PARTICLE;
+
+	//
+	//  allocate generic resources
+	//
+
+	MPI_Datatype PARTICLE;
 	int ints_per_particle = sizeof(particle_t) / sizeof(int);
-    MPI_Type_contiguous( ints_per_particle, MPI_INT, &PARTICLE );
-    MPI_Type_commit( &PARTICLE );
-    
-    //
-    //  set up the data partitioning across processors
-    //
+	MPI_Type_contiguous( ints_per_particle, MPI_INT, &PARTICLE );
+	MPI_Type_commit( &PARTICLE );
+	
+	MPI_Datatype MIN_PARTICLE;
+	int ints_per_min_particle = sizeof(struct minimum_particle) / sizeof(int);
+	MPI_Type_contiguous( ints_per_min_particle, MPI_INT, &MIN_PARTICLE );
+	MPI_Type_commit( &MIN_PARTICLE );
+
+	//
+	//  set up the data partitioning across processors
+	//
 	
 	if(!savename && !write_to_stdout){
 		usage();
 		exit(1);
 	}
 	
-    int particle_per_proc = (num_particles + n_proc - 1) / n_proc;
-	if(rank == 0){
-		fprintf(stderr, "%s particles: %i\tparticles per proc: %i\n", MPI_PREPEND, (num_particles), particle_per_proc);
-		fflush(stdout);
+	//
+	//  initialize and distribute the particles
+	//
+	set_size( num_particles, &map_cfg );
+	int local_count;
+	MPI_Status status;
+	particle_t *local = NULL;
+	int counts[n_proc], offsets[n_proc];
+	
+	if( rank == 0 ){
+		init_particles( num_particles, special_agents_count, agents, particles, &map_cfg );
+		
+		particle_t *batches[n_proc];
+		// figure out what particles belong to what cores
+		for(int i = 0; i < n_proc; i++){
+			// making room for enough for each core to receive ALL particles. Definitely overshooting, but it'll work
+			batches[i] = (particle_t *) malloc(num_particles * sizeof(particle_t));
+			counts[i] = 0;
+		}
+		int index;
+		particle_t *particle;
+		for(int i = 0; i < num_particles; i++){
+			particle = &particles[i];
+			index = rank_for_location(particle->x, particle->y, n_proc, areas);
+			memcpy(&batches[index][counts[index]], particle, sizeof(particle_t));
+			
+			fprintf(stderr,"%s Assigned particle at (%lf,%lf) to core %i\n", MPI_PREPEND,batches[index][counts[index]].x,batches[index][counts[index]].y,index );
+			counts[index]++;
+		}
+		
+		// now batches[i] holds array of counts[i] particles
+		
+		// as rank 0, just point locals pointer to array directly. done.
+		local_count = counts[0];
+		local = batches[0];
+		
+		for(int i = 1; i < n_proc; i++){
+			
+			MPI_Send(&counts[i], 1, MPI_INT, i, SEND_INITIAL_PARTICLE_COUNT, MPI_COMM_WORLD);
+			MPI_Send(batches[i], counts[i], PARTICLE, i, SEND_INITIAL_PARTICLES, MPI_COMM_WORLD);
+			
+		}
+		
+	}else{
+		MPI_Recv(&local_count, 1, MPI_INT, 0, SEND_INITIAL_PARTICLE_COUNT, MPI_COMM_WORLD, &status);
+		local = (particle_t*) malloc( local_count * sizeof(particle_t) );
+		
+		MPI_Recv(local, local_count, PARTICLE, 0, SEND_INITIAL_PARTICLES, MPI_COMM_WORLD, &status);
 	}
 	
-    int *partition_offsets = (int*) malloc( (n_proc + 1) * sizeof(int) );
-    for( int i = 0; i < n_proc+1; i++ ){
-        partition_offsets[i] = MIN( i * particle_per_proc, num_particles );
+	fprintf(stderr, "%s Rank %i got %i particles out of %i\n", MPI_PREPEND, rank, local_count, num_particles);
+	if(local_count > 0){
+		fprintf(stderr, "%s Rank %i point 0: (%lf, %lf)\n", MPI_PREPEND, rank, local[0].x, local[0].y);
 	}
-    
-    int *partition_sizes = (int*) malloc( n_proc * sizeof(int) );
-    for( int i = 0; i < n_proc; i++ ){
 	
-        partition_sizes[i] = partition_offsets[i+1] - partition_offsets[i];
-	}
-    
-    //
-    //  allocate storage for local partition
-    //
-    int nlocal = partition_sizes[rank];
-    particle_t *local = (particle_t*) malloc( nlocal * sizeof(particle_t) );
-    
-    //
-    //  initialize and distribute the particles
-    //
-    set_size( num_particles, &map_cfg );
 	
-    if( rank == 0 ){
-        init_particles( num_particles, special_agents_count, agents, particles, &map_cfg );
-	}
+	
 	
 	bool first = true;
 	GLFWwindow *win = NULL;
@@ -372,42 +405,63 @@ int main( int argc, char **argv ){
 	double radius = 15;
 	double now = glfwGetTime();
 	
-    MPI_Scatterv( particles, partition_sizes, partition_offsets, PARTICLE, local, nlocal, PARTICLE, 0, MPI_COMM_WORLD );
+	FILE *fsave = savename && rank == 0 ? (write_to_stdout ? stdout : fopen( savename, "w" )) : NULL;
 	
     //
     //  simulate a number of time steps
     //
     double simulation_time = read_timer( );
+	struct minimum_particle *minimum_particles = (struct minimum_particle *) malloc (num_particles * sizeof(struct minimum_particle));
     for( int step = 0; !timesteps || step < timesteps; step++ ){
-        // 
-        //  collect all global data locally (not good idea to do)
-        //
-        MPI_Allgatherv( local, nlocal, PARTICLE, particles, partition_sizes, partition_offsets, PARTICLE, MPI_COMM_WORLD );
-
-        if(rank == 0){
-			save( fsave, num_particles, particles, &map_cfg );
-			
-			// sleep for a few milliseconds
-			//std::this_thread::sleep_for(std::chrono::nanoseconds(20000000));
-		}
 		
-        
 		//
 		//  compute all fnum_particlesrces
 		//
-		for( int i = 0; i < nlocal; i++ ){
+		for( int i = 0; i < local_count; i++ ){
 			local[i].ax = local[i].ay = 0;
-			for (int j = 0; j < num_particles; j++ ){
-				apply_force( local[i], particles[j] );
+		}
+		for( int i = 0; i < local_count-1; i++ ){
+			for (int j = i+1; j < local_count; j++ ){
+				fprintf(stderr,"%s rank %i computing between %i and %i\n", MPI_PREPEND, rank, i, j);
+				apply_force( local[i], local[j] );
 			}
 		}
+		
+		// compute forces against nearby ghost zones
+		
+		
 		
 		//
 		//  move particles
 		//
-		for( int i = 0; i < nlocal; i++ ){
+		for( int i = 0; i < local_count; i++ ){
 			move( local[i], &map_cfg );
+			
+			minimum_particles[i].x = local[i].x;
+			minimum_particles[i].y = local[i].y;
+			minimum_particles[i].color_r = local[i].color_r;
+			minimum_particles[i].color_g = local[i].color_g;
+			minimum_particles[i].color_b = local[i].color_b;
 		}
+		
+		
+		// tell root how many points each rank has
+		MPI_Gather(&local_count, 1, MPI_INT, counts, 1, MPI_INT, 0, MPI_COMM_WORLD);
+		
+		if(rank == 0){
+			for(int i = 0; i < n_proc; i++){
+				offsets[i] = (i == 0 ? 0 : offsets[i-1] + counts[i-1]);
+				//fprintf(stderr, "%s root says rank %i has %i mins, offset: %i\n", MPI_PREPEND, i, counts[i], offsets[i]);
+			}
+		}
+		
+		// send points to rank 0 to be written (only x,y & color)
+		MPI_Gatherv(minimum_particles, local_count, MIN_PARTICLE, minimum_particles, counts, offsets, MIN_PARTICLE, 0, MPI_COMM_WORLD);
+		
+		if(rank == 0){
+			save( fsave, num_particles, minimum_particles, &map_cfg );
+		}
+		
     }
     simulation_time = read_timer( ) - simulation_time;
     
@@ -423,8 +477,6 @@ int main( int argc, char **argv ){
 		free(map_cfg.data);
 	}
 	
-    free( partition_offsets );
-    free( partition_sizes );
     free( local );
     free( particles );
     if( fsave )
