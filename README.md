@@ -31,20 +31,25 @@ MPI  : brew install open-mpi
 
 make clean && make
 
+Requires power-of-4 number of cores for subdivision of map area.
+
 Generate a particle simulation output:
-mpirun -np 2 ./run -r 10 -o out.txt
+mpirun -np 4 ./run -r 10 -o out.txt
 
 Visualize:
 ./run -i out.txt
 
 Combined:
-mpirun -np 2 ./run -r 10 -o stdout | ./run -i stdin
+mpirun -np 4 ./run -r 10 -o stdout | ./run -i stdin
 
 With a map:
-mpirun -np 2 ./run -r 10 -o stdout -c map_box.cfg | ./run -i stdin
+mpirun -np 4 ./run -r 10 -o stdout -c map_box.cfg | ./run -i stdin
 
 With agent configuration file for three particles and 4 particles with random start/goal:
-mpirun -np 2 ./run -o stdout -c map_box.cfg -r 4 -p agents.txt -y 3 | ./run -i stdin
+mpirun -np 4 ./run -o stdout -c map_box.cfg -r 4 -p agents.txt -y 3 | ./run -i stdin
+
+Performance benchmark for simulator (doesn't write out data to STDOUT or file):
+mpirun -np 4 ./run -c map_box.cfg -r 4 -o none
 
 Available maps:
 
