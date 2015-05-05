@@ -49,7 +49,7 @@ With agent configuration file for three particles and 4 particles with random st
 mpirun -np 4 ./run -o stdout -c map_box.cfg -r 4 -p agents.txt -y 3 | ./run -i stdin
 
 Performance benchmark for simulator (doesn't write out data to STDOUT or file):
-mpirun -np 4 ./run -c map_box.cfg -r 4 -o none
+mpirun -np 4 ./run -c map_box.cfg -r 1000 -o none -t 10000
 
 Available maps:
 
