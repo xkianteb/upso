@@ -20,7 +20,7 @@ void usage(){
 	printf( "-h                        : this text\n" );
 	printf( "\nOptions for particle simulator:\n");
 	printf( "-p <filename>             : Read particle config\n" );
-	printf( "-o <filename>             : specify the output file name for logging instead of drawing 3d (can be \"stdout\" for stdout)\n" );
+	printf( "-o <filename|none>        : specify the output file name for logging instead of drawing 3d (can be \"stdout\" for stdout). May also specify \"none\" to simply benchmark for a given number of timesteps.\n" );
 	printf( "-t <int>                  : set the number of timesteps to calculate, default infinite, but %u with -o present\n", NSTEPS );
 	printf( "-c <filename>             : Use map config for simulator, defaults to map.cfg (plain old square).\n");
 	printf( "-x <filename>	           : Load particle starting configuration.\n");
@@ -312,6 +312,7 @@ int main( int argc, char **argv ){
 	if(find_option(argc, argv, "-o") >= 0){
 		savename = read_string( argc, argv, "-o", NULL );
 	}
+	bool benchmark_only = savename && str_equals(savename, "none");
 	bool write_to_stdout = savename && str_equals(savename, "stdout");
 	
 	int timesteps = write_to_stdout ? 0 : NSTEPS;
@@ -386,7 +387,7 @@ int main( int argc, char **argv ){
 			index = rank_for_location(particle->x, particle->y, n_proc, areas);
 			memcpy(&batches[index][counts[index]], particle, sizeof(particle_t));
 			
-			fprintf(stderr,"%s Assigned particle at (%lf,%lf) to core %i\n", MPI_PREPEND,batches[index][counts[index]].x,batches[index][counts[index]].y,index );
+			//fprintf(stderr,"%s Assigned particle at (%lf,%lf) to core %i\n", MPI_PREPEND,batches[index][counts[index]].x,batches[index][counts[index]].y,index );
 			counts[index]++;
 		}
 		
@@ -428,7 +429,7 @@ int main( int argc, char **argv ){
 	double radius = 15;
 	double now = glfwGetTime();
 	
-	FILE *fsave = savename && rank == 0 ? (write_to_stdout ? stdout : fopen( savename, "w" )) : NULL;
+	FILE *fsave = benchmark_only ? NULL : (savename && rank == 0 ? (write_to_stdout ? stdout : fopen( savename, "w" )) : NULL);
 	
     //
     //  simulate a number of time steps
@@ -518,7 +519,7 @@ int main( int argc, char **argv ){
 		// send points to rank 0 to be written (only x,y & color)
 		MPI_Gatherv(minimum_particles, local_count, MIN_PARTICLE, minimum_particles, counts, offsets, MIN_PARTICLE, 0, MPI_COMM_WORLD);
 		
-		if(rank == 0){
+		if(rank == 0 && !benchmark_only){
 			save( fsave, num_particles, minimum_particles, &map_cfg );
 		}
 		
