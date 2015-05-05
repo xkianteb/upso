@@ -25,7 +25,7 @@ double width;
 #define dt      0.0005 // 0.0005
 #define precision 2 // Precision to how close the coordinates should be to goal
 
-#define RANDOM_COLOR true
+#define RANDOM_COLOR false
 
 //
 //  timer
