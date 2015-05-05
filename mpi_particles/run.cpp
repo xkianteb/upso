@@ -182,13 +182,40 @@ int main( int argc, char **argv ){
 	
 	// Won't get here if '-i' is provided.
 	
+	struct subdivision *areas = (struct subdivision *) malloc(n_proc * sizeof(struct subdivision));
+	memset(areas, 0, n_proc * sizeof(struct subdivision));
+	
 	if(rank == 0){
 		if(!isPowerOfFour(n_proc)){
 			fprintf(stderr, "Must use a power-of-four number of cores (1, 4, 16, etc) for subdivision\n");
 			usage();
 			exit(0);
 		}
+		
+		// calculate subdivisions for processing of specific areas
+		int sqrt_proc = sqrt(n_proc);
+		double range = 1.0 / sqrt_proc; // this makes it easy with 4 cores, just keep making squares (rectangles aren't AS easy)
+		int core = 0;
+		for(int row = 0; row < sqrt_proc; row++){
+			
+			for(int col = 0; col < sqrt_proc; col++){
+				
+				areas[core].min_x = col * range;
+				areas[core].max_x = col * range + range;
+				areas[core].min_y = row * range;
+				areas[core].max_y = row * range + range;
+			
+				core++;
+			}
+		
+		}
 	}
+	//MPI_Scatter(areas, 4, MPI_DOUBLE, &my_area, 4, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+	MPI_Bcast(areas, 4 * n_proc, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+	
+	struct subdivision *my_area = &(areas[rank]);
+	fprintf(stderr, "%s Assigning rank %i to (%lf, %lf), (%lf, %lf)\n",MPI_PREPEND, rank, my_area->min_x, my_area->min_y, my_area->max_x, my_area->max_y);
+	
 	
 	// Read in the special agents
 	char *input_agents = NULL;

@@ -9,6 +9,14 @@
 
 inline int sign(double x) {return (x > 0) ? 1 : ((x < 0) ? -1 : 0);}
 
+struct subdivision{
+	double min_x;
+	double min_y;
+	double max_x;
+	double max_y;
+};
+
+
 struct map{
 	unsigned int height;
 	unsigned int width;
