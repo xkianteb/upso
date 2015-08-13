@@ -64,7 +64,3 @@ map_box.cfg : perimeter box shape, with middle cut out.
 map_disjoint.cfg : Different shapes, particles can be separated just fine.
 
 Currently the visualization portion works best on maps ~15x15, else some scaling is necessary to make it draw nicely inside the window.
-
-# To do:
-
-Clean up the Makefile. It is a bit ugly and brute forced right now.
